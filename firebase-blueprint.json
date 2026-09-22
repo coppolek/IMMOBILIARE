@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile containing identity and preferences",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth User ID"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar photo URL"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role: student, worker, landlord, or admin",
+          "enum": ["student", "worker", "landlord", "admin"]
+        },
+        "university": {
+          "type": "string",
+          "description": "University attended if student"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Contact phone number"
+        },
+        "bio": {
+          "type": "string",
+          "description": "Brief description of the person"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of account creation"
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "Listing": {
+      "title": "Listing",
+      "description": "Housing rental listing in Milan",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "zone": {
+          "type": "string"
+        },
+        "roomType": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "title", "price"]
+    },
+    "Seeker": {
+      "title": "Seeker",
+      "description": "Profile of a student seeking accommodation",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "maxBudget": {
+          "type": "number"
+        }
+      },
+      "required": ["id", "name", "maxBudget"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles and account settings"
+    },
+    "/listings/{listingId}": {
+      "schema": "Listing",
+      "description": "Housing listings in Milan"
+    },
+    "/seekers/{seekerId}": {
+      "schema": "Seeker",
+      "description": "Room seekers looking for accommodation"
+    }
+  }
+}

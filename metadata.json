@@ -1,0 +1,6 @@
+{
+  "name": "Affitti Milano - Housing & Room Finder",
+  "description": "Community hub, verified room listings, seeker board, and AI scam detector for Milan student & expat rentals (Facebook Group 477013955229676).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
