@@ -12,7 +12,8 @@ import {
   Plus,
   Heart,
   Users,
-  CheckCircle2
+  CheckCircle2,
+  X
 } from 'lucide-react';
 import { SeekerProfile, RoomType } from '../types';
 import { FACEBOOK_GROUP_URL } from '../data/milanData';
@@ -58,9 +59,9 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
   };
 
   return (
-    <div id="seekers-view" className="space-y-6">
+    <div id="seekers-view" className="space-y-4 sm:space-y-6">
       {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 rounded-2xl p-6 sm:p-8 text-white border border-stone-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-md">
+      <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 rounded-2xl p-4 sm:p-8 text-white border border-stone-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6 shadow-md">
         <div className="max-w-2xl">
           <div className="flex items-center gap-2 mb-2">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-400/30 flex items-center gap-1.5">
@@ -68,20 +69,20 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
               {isIt ? 'Bacheca Inquilini Referenziati' : 'Referenced Tenants Board'}
             </span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-serif font-extrabold text-stone-50 mb-2">
+          <h2 className="text-xl sm:text-3xl font-serif font-extrabold text-stone-50 mb-1.5 sm:mb-2">
             {isIt ? 'Studenti e lavoratori in cerca di alloggio' : 'Students & workers seeking housing in Milan'}
           </h2>
           <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
             {isIt 
-              ? 'Hai una stanza o un appartamento libero? Sfoglia i profili dei membri del gruppo Facebook con budget, università e referenze garantite. Contattali direttamente!'
-              : 'Have an available room or apartment? Browse group members looking for accommodation with verified budgets, university enrollments, and guarantees.'}
+              ? 'Hai una stanza libera? Sfoglia i profili con budget, università e referenze garantite. Contattali direttamente!'
+              : 'Have an available room? Browse group members looking for accommodation with verified budgets, universities, and guarantees.'}
           </p>
         </div>
 
         <button
           id="btn-create-seeker-post"
           onClick={onOpenAddSeeker}
-          className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors shrink-0 text-xs sm:text-sm"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors shrink-0 text-xs sm:text-sm"
         >
           <Plus className="w-4 h-4" />
           <span>{isIt ? 'Inserisci il tuo profilo' : 'Post your seeker profile'}</span>
@@ -89,38 +90,74 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl border border-stone-200 p-4 shadow-xs flex flex-wrap items-center justify-between gap-4 text-xs">
-        <div className="flex-1 min-w-[240px]">
-          <div className="relative">
-            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              id="search-seekers-input"
-              type="text"
-              placeholder={isIt ? "Cerca per ateneo (PoliMi, Bocconi...), nome o zona desiderata..." : "Search by university, name, or preferred zone..."}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-lg border border-stone-200 bg-stone-50 focus:bg-white focus:outline-hidden focus:border-amber-500"
-            />
-          </div>
+      <div className="bg-white rounded-2xl border border-stone-200/90 p-3.5 sm:p-4 shadow-xs space-y-3 text-xs">
+        <div className="relative">
+          <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            id="search-seekers-input"
+            type="text"
+            placeholder={isIt ? "Cerca per ateneo (PoliMi, Bocconi...), nome o zona..." : "Search by university, name, or zone..."}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-stone-200 bg-stone-50 focus:bg-white focus:outline-hidden focus:border-amber-500 text-xs sm:text-sm"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-700"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div>
-            <select
-              id="filter-seeker-role"
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="py-2 px-3 rounded-lg border border-stone-200 bg-stone-50 font-medium text-stone-800 focus:outline-hidden"
+        {/* Quick Role & Budget Pills */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
+            <button
+              onClick={() => setRoleFilter('all')}
+              className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap text-xs transition-all shrink-0 ${
+                roleFilter === 'all'
+                  ? 'bg-stone-900 text-white'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
             >
-              <option value="all">{isIt ? 'Tutti i profili' : 'All profiles'}</option>
-              <option value="Studente">{isIt ? 'Studenti universitari' : 'University students'}</option>
-              <option value="Lavoratore">{isIt ? 'Giovani lavoratori' : 'Young professionals'}</option>
-              <option value="Stagista">{isIt ? 'Stagisti / Tirocinanti' : 'Interns'}</option>
-            </select>
+              {isIt ? 'Tutti i profili' : 'All profiles'}
+            </button>
+            <button
+              onClick={() => setRoleFilter('Studente')}
+              className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap text-xs transition-all shrink-0 ${
+                roleFilter === 'Studente'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              {isIt ? 'Studenti' : 'Students'}
+            </button>
+            <button
+              onClick={() => setRoleFilter('Lavoratore')}
+              className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap text-xs transition-all shrink-0 ${
+                roleFilter === 'Lavoratore'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              {isIt ? 'Lavoratori' : 'Workers'}
+            </button>
+            <button
+              onClick={() => setRoleFilter('Stagista')}
+              className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap text-xs transition-all shrink-0 ${
+                roleFilter === 'Stagista'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              {isIt ? 'Stagisti' : 'Interns'}
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-stone-500">{isIt ? 'Budget max:' : 'Max budget:'}</span>
+          <div className="flex items-center justify-between sm:justify-end gap-2 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200/80">
+            <span className="text-stone-500 font-medium">{isIt ? 'Budget max:' : 'Max budget:'}</span>
             <span className="font-bold text-amber-700">€{maxBudgetFilter}</span>
             <input
               type="range"
@@ -129,7 +166,7 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
               step="50"
               value={maxBudgetFilter}
               onChange={(e) => setMaxBudgetFilter(Number(e.target.value))}
-              className="w-24 accent-amber-600 cursor-pointer"
+              className="w-24 sm:w-28 accent-amber-600 cursor-pointer h-2"
             />
           </div>
         </div>

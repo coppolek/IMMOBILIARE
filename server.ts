@@ -23,6 +23,39 @@ function getGenAI(): GoogleGenAI | null {
   return genAIClient;
 }
 
+/**
+ * Resilient Gemini caller with automatic fallback across models
+ * Handles 503 (high demand), 429 (rate limit), and temporary outages seamlessly.
+ */
+async function callGeminiWithFallback(
+  prompt: string,
+  config?: { responseMimeType?: string }
+): Promise<string | null> {
+  const ai = getGenAI();
+  if (!ai) return null;
+
+  // Prioritize gemini-2.5-flash, fallback to gemini-2.0-flash then gemini-2.5-pro
+  const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-pro'];
+
+  for (const model of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config,
+      });
+      if (response && response.text) {
+        return response.text;
+      }
+    } catch (err: any) {
+      console.warn(`Gemini generation with ${model} temporarily unavailable:`, err?.message || err);
+      // Continue to next model fallback
+    }
+  }
+
+  return null;
+}
+
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -42,9 +75,7 @@ app.post('/api/analyze-listing', async (req, res) => {
       return res.status(400).json({ error: 'Text content is required for scam analysis.' });
     }
 
-    const ai = getGenAI();
-    if (ai) {
-      const prompt = `You are an expert Milan (Italy) rental market investigator and anti-scam advisor for the Facebook housing group "Affitti Milano" (ID 477013955229676).
+    const prompt = `You are an expert Milan (Italy) rental market investigator and anti-scam advisor for the Facebook housing group "Affitti Milano" (ID 477013955229676).
 Analyze the following housing offer, message, or chat snippet for potential scams, predatory terms, or red flags.
 
 CONTEXT OF MILAN RENTAL SCAMS:
@@ -75,20 +106,13 @@ Please respond ONLY in valid JSON matching this exact schema:
   "actionAdvice": ["Concrete instructions for the student/tenant on what to verify or do next"]
 }`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-
-      const responseText = response.text || '{}';
+    const rawResponse = await callGeminiWithFallback(prompt, { responseMimeType: 'application/json' });
+    if (rawResponse) {
       try {
-        const parsed = JSON.parse(responseText);
+        const parsed = JSON.parse(rawResponse);
         return res.json(parsed);
       } catch (parseErr) {
-        console.error('Failed to parse Gemini JSON output', parseErr, responseText);
+        console.warn('Failed to parse Gemini output, using heuristic fallback:', parseErr);
       }
     }
 
@@ -160,9 +184,7 @@ app.post('/api/generate-fb-post', async (req, res) => {
       extraDetails,
     } = req.body;
 
-    const ai = getGenAI();
-    if (ai) {
-      const prompt = `You are an expert community manager for the Facebook group "Affitti Milano / Stanze e Appartamenti" (URL: https://www.facebook.com/groups/477013955229676).
+    const prompt = `You are an expert community manager for the Facebook group "Affitti Milano / Stanze e Appartamenti" (URL: https://www.facebook.com/groups/477013955229676).
 Generate a highly engaging, polite, and effective post in BOTH Italian and English (or bilingual format popular in Milan housing groups).
 
 PARAMETERS:
@@ -192,20 +214,13 @@ Return ONLY a JSON object:
   "tipsForSuccess": ["3 bullet tips to get faster replies on Facebook group 477013955229676"]
 }`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-
-      const responseText = response.text || '{}';
+    const rawResponse = await callGeminiWithFallback(prompt, { responseMimeType: 'application/json' });
+    if (rawResponse) {
       try {
-        const parsed = JSON.parse(responseText);
+        const parsed = JSON.parse(rawResponse);
         return res.json(parsed);
       } catch (parseErr) {
-        console.error('Failed to parse Gemini JSON output', parseErr);
+        console.warn('Failed to parse Gemini output, using template fallback:', parseErr);
       }
     }
 
@@ -271,9 +286,7 @@ app.post('/api/rental-advisor', async (req, res) => {
       return res.status(400).json({ error: 'Question is required' });
     }
 
-    const ai = getGenAI();
-    if (ai) {
-      const prompt = `You are a licensed Milan real estate expert and tenant rights advocate for Milan Facebook housing group 477013955229676.
+    const prompt = `You are a licensed Milan real estate expert and tenant rights advocate for Milan Facebook housing group 477013955229676.
 Answer the following tenant/landlord question clearly, objectively, and accurately based on Italian tenancy law (Legge 431/98, Cedolare Secca, contratti transitori per studenti, RLI Agenzia delle Entrate, caparra cauzionale, spese condominiali, Milano zone averages):
 
 Question: "${question}"
@@ -285,24 +298,40 @@ Provide:
 
 Keep your response structured, well formatted with markdown bullet points.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-      });
+    const aiText = await callGeminiWithFallback(prompt);
+    if (aiText) {
+      return res.json({ answer: aiText });
+    }
 
-      return res.json({ answer: response.text });
+    // High quality contextual fallback based on Italian tenancy law
+    const qLower = String(question).toLowerCase();
+    let specificAdvice = '';
+    if (qLower.includes('caparra') || qLower.includes('deposito')) {
+      specificAdvice = `\n\n📌 **Focus Caparra / Deposito Cauzionale:** In Italia (art. 11 Legge 392/78) il limite massimo legale è di **3 mensilità**. Eventuali richieste superiori sono nulle per legge. La caparra deve essere restituita al termine della locazione con gli interessi legali maturati, previa verifica dello stato dell'immobile.`;
+    } else if (qLower.includes('transitorio') || qLower.includes('student')) {
+      specificAdvice = `\n\n📌 **Focus Contratto Studenti:** Il contratto transitorio per studenti (L. 431/98) dura da 6 a 36 mesi. Richiede l'iscrizione a un corso universitario in un comune diverso dalla propria residenza e consente importanti detrazioni fiscali per i genitori e per lo studente.`;
+    } else if (qLower.includes('cedolare')) {
+      specificAdvice = `\n\n📌 **Focus Cedolare Secca:** Regime fiscale agevolato con aliquota al 10% (a canone concordato) o 21% (canone libero). Vantaggio enorme per l'inquilino: esenzione totale da imposta di registro e marche da bollo, e canone bloccato per l'intera durata senza adeguamento ISTAT.`;
+    } else if (qLower.includes('costo') || qLower.includes('spese') || qLower.includes('prezzo')) {
+      specificAdvice = `\n\n📌 **Focus Costi a Milano:** A Milano una stanza singola oscilla mediamente tra 600€ e 850€/mese. Le spese condominiali (riscaldamento centralizzato, portineria, ascensore) incidono tipicamente per 60€-120€/mese. L'abbonamento ATM studenti under 26 costa 22€/mese.`;
+    } else if (qLower.includes('residenza')) {
+      specificAdvice = `\n\n📌 **Focus Residenza:** Con un contratto registrato ad uso abitativo (incluso il transitorio se la durata lo consente) è possibile richiedere la residenza o il domicilio anagrafico/sanitario per il medico di base a Milano.`;
     }
 
     return res.json({
-      answer: `**Consiglio Generale per Milano:**
-- **Contratto:** Richiedi sempre un contratto registrato all'Agenzia delle Entrate (Modello RLI). I più usati sono il *Canone Concordato 3+2*, il *Transitorio per Studenti* (da 6 a 36 mesi con attestazione di iscrizione all'università), o il *4+4*.
-- **Cedolare Secca:** Molto conveniente perché esenta dall'imposta di registro e dal bollo per il conduttore.
-- **Deposito Cauzionale:** La legge italiana (art. 11 L. 392/78) stabilisce che non può superare 3 mensilità di canone e deve maturare interessi legali se non diversamente pattuito.
-- **Documenti:** Servono sempre Documento d'identità, Codice Fiscale italiano, e attestazione redditi (busta paga, CUD) o iscrizione universitaria con garanzia genitoriale.`,
+      answer: `**Consiglio Esperto Locazioni Milano (Community Affitti Milano):**\n\n` +
+        `Grazie per la domanda. Ecco gli aspetti legali e pratici fondamentali da considerare a Milano:\n\n` +
+        `• **Tipologie di Contratto:** A Milano le formule più diffuse sono il *Contratto Transitorio per Studenti* (6-36 mesi con canone concordato asseverato), il *3+2 Canone Concordato*, o il classico *4+4*. Tutti devono essere obbligatoriamente registrati presso l'Agenzia delle Entrate tramite modello RLI entro 30 giorni dalla stipula.\n` +
+        `• **Tutela dai Raggiri:** Non versare mai denaro o caparre prima di aver visionato l'immobile di persona e verificato l'identità del locatore (codice fiscale e documento).\n` +
+        `• **Spese Condominiali vs Utenze:** Le spese di ordinaria manutenzione spettano all'inquilino, mentre le spese straordinarie (rifacimento facciata, impianto ascensore nuovo) sono per legge a carico esclusivo del proprietario.` +
+        specificAdvice
     });
   } catch (err: any) {
-    console.error('Rental advisor error:', err);
-    res.status(500).json({ error: err.message || 'Error processing request.' });
+    console.error('Rental advisor error caught gracefully:', err);
+    return res.json({
+      answer: `**Consiglio Community Affitti Milano:**\n\n` +
+        `Richiedi sempre un contratto regolarmente registrato all'Agenzia delle Entrate (RLI) e non versare caparre superiori a 3 mensilità (art. 11 L. 392/78) o bonifici prima della visita in presenza.`
+    });
   }
 });
 

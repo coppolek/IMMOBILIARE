@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   ShieldCheck, 
   Database, 
@@ -26,10 +26,17 @@ import {
   Building,
   HelpCircle,
   Terminal,
-  X
+  X,
+  Settings,
+  Globe,
+  Share2,
+  Image as ImageIcon,
+  Code2,
+  Mail
 } from 'lucide-react';
-import { Listing, RoomType, MetroLine, UserProfile } from '../types';
+import { Listing, RoomType, MetroLine, UserProfile, AdSenseConfig, Subscriber, AppNotification, Newsletter } from '../types';
 import { parseCSVToListings, parseRSSToListings, inferMetroStationAndLine, normalizeMilanZone } from '../utils/importer';
+import { isUserAdmin } from '../services/authService';
 import { 
   batchSaveListingsToFirestore, 
   batchDeleteListingsFromFirestore, 
@@ -38,15 +45,29 @@ import {
   deleteListingFromFirestore,
   saveListingToFirestore 
 } from '../services/dbService';
-import { INITIAL_LISTINGS } from '../data/milanData';
+import { 
+  subscribeToSubscribers, 
+  subscribeToUsers, 
+  subscribeToNotifications, 
+  subscribeToNewsletters 
+} from '../services/subscriberService';
+import { INITIAL_LISTINGS, FACEBOOK_GROUP_URL } from '../data/milanData';
+import { PostGeneratorView } from './PostGeneratorView';
+import { AdminSubscribersPanel } from './AdminSubscribersPanel';
 
 interface AdminImportPanelProps {
   listings: Listing[];
   user: UserProfile | null;
   lang: 'it' | 'en';
+  initialTab?: 'importer' | 'generator' | 'adsense' | 'catalog' | 'maintenance' | 'logs' | 'subscribers';
+  adConfig?: AdSenseConfig | null;
+  onSaveAdSenseConfig?: (newConfig: AdSenseConfig) => Promise<void>;
   onRefreshListings?: () => void;
   onNotification?: (msg: string) => void;
   onBackToApp?: () => void;
+  onOpenAdSenseModal?: () => void;
+  onOpenImportModal?: () => void;
+  onSelectListing?: (id: string) => void;
 }
 
 interface LogEntry {
@@ -60,14 +81,39 @@ export const AdminImportPanel: React.FC<AdminImportPanelProps> = ({
   listings,
   user,
   lang,
+  initialTab = 'importer',
+  adConfig,
+  onSaveAdSenseConfig,
   onRefreshListings,
   onNotification,
-  onBackToApp
+  onBackToApp,
+  onOpenAdSenseModal,
+  onOpenImportModal,
+  onSelectListing,
 }) => {
   const isIt = lang === 'it';
 
   // Sub-navigation inside Admin Panel
-  const [activeTab, setActiveTab] = useState<'catalog' | 'importer' | 'maintenance' | 'logs'>('catalog');
+  const [activeTab, setActiveTab] = useState<'importer' | 'generator' | 'adsense' | 'catalog' | 'maintenance' | 'logs' | 'subscribers'>(initialTab);
+
+  // Subscribers, Users, Notifications, and Newsletters State
+  const [subscribersList, setSubscribersList] = useState<Subscriber[]>([]);
+  const [usersList, setUsersList] = useState<UserProfile[]>([]);
+  const [notificationsList, setNotificationsList] = useState<AppNotification[]>([]);
+  const [newslettersList, setNewslettersList] = useState<Newsletter[]>([]);
+
+  useEffect(() => {
+    const unsubSub = subscribeToSubscribers(setSubscribersList);
+    const unsubUsers = subscribeToUsers(setUsersList);
+    const unsubNotifs = subscribeToNotifications(setNotificationsList);
+    const unsubNls = subscribeToNewsletters(setNewslettersList);
+    return () => {
+      unsubSub();
+      unsubUsers();
+      unsubNotifs();
+      unsubNls();
+    };
+  }, []);
 
   // Logs
   const [logs, setLogs] = useState<LogEntry[]>([
@@ -219,11 +265,19 @@ export const AdminImportPanel: React.FC<AdminImportPanelProps> = ({
   };
 
   // Handle URL Batch Parsing (e.g. Immobiliare.it URLs)
-  const handleProcessUrlBatch = () => {
-    if (!urlBatchText.trim()) return;
-    const lines = urlBatchText.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
+  const handleProcessUrlBatch = (overrideText?: string) => {
+    const textToProcess = (overrideText !== undefined ? overrideText : urlBatchText).trim();
+    if (!textToProcess) {
+      setImportErrors([
+        isIt 
+          ? 'Il box è vuoto! Incolla prima uno o più link di annunci (es. da Immobiliare.it) oppure clicca su "Carica link di esempio".' 
+          : 'Box is empty! Paste one or more links or click "Load sample links".'
+      ]);
+      return;
+    }
+    const lines = textToProcess.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
     if (lines.length === 0) {
-      setImportErrors([isIt ? 'Nessun URL valido trovato (inserisci link con http:// o https://).' : 'No valid URLs found.']);
+      setImportErrors([isIt ? 'Nessun URL valido trovato (inserisci link completi che iniziano con https:// o http://).' : 'No valid URLs found.']);
       return;
     }
 
@@ -445,6 +499,34 @@ export const AdminImportPanel: React.FC<AdminImportPanelProps> = ({
     addLog('info', `Esportato foglio CSV con ${listings.length} annunci.`);
   };
 
+  if (!isUserAdmin(user)) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-stone-200 shadow-xl text-center space-y-4">
+          <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mx-auto border border-amber-200">
+            <ShieldCheck className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-bold font-serif text-stone-900">
+            {isIt ? 'Accesso Riservato all\'Amministratore' : 'Administrator Access Only'}
+          </h2>
+          <p className="text-xs text-stone-600 leading-relaxed">
+            {isIt
+              ? 'L\'importazione e gestione massiva degli annunci è consentita solo all\'amministratore autenticato (coppolek@gmail.com).'
+              : 'Listing import and database batch management is restricted to authorized administrators (coppolek@gmail.com).'}
+          </p>
+          {onBackToApp && (
+            <button
+              onClick={onBackToApp}
+              className="mt-4 px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition-colors"
+            >
+              {isIt ? '← Torna alla Home' : '← Return to Home'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div id="admin-control-panel-root" className="min-h-screen bg-stone-100 text-stone-900 pb-16">
       {/* Top Banner / Breadcrumb */}
@@ -463,10 +545,10 @@ export const AdminImportPanel: React.FC<AdminImportPanelProps> = ({
               </div>
               <h1 className="text-xl sm:text-2xl font-bold font-serif text-white flex items-center gap-2.5">
                 <Database className="w-6 h-6 text-amber-500" />
-                <span>Pannello di Controllo Importazioni Annunci</span>
+                <span>Pannello di Amministrazione</span>
               </h1>
               <p className="text-xs text-stone-400 mt-1">
-                Gestione completa delle importazioni, sincronizzazione con Firestore e monitoraggio delle fonti esterne (Immobiliare.it & FB).
+                Strumenti esclusivi per l'amministratore: Formattazione Post FB, Importazione Alloggi CSV/RSS, Banner Google AdSense e Catalogo.
               </p>
             </div>
 
@@ -548,7 +630,54 @@ export const AdminImportPanel: React.FC<AdminImportPanelProps> = ({
       {/* Main Admin Content Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-stone-200 pb-3 mb-6 overflow-x-auto">
+        <div className="flex items-center gap-2 border-b border-stone-200 pb-3 mb-6 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+          <button
+            id="tab-admin-importer"
+            onClick={() => setActiveTab('importer')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all whitespace-nowrap ${
+              activeTab === 'importer'
+                ? 'bg-white text-stone-900 shadow-xs border border-stone-200 font-bold'
+                : 'text-stone-600 hover:text-stone-900 hover:bg-white/60'
+            }`}
+          >
+            <UploadCloud className="w-4 h-4 text-amber-600" />
+            <span>Importa Alloggi (CSV / RSS)</span>
+            {previewListings.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                {previewListings.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            id="tab-admin-generator"
+            onClick={() => setActiveTab('generator')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all whitespace-nowrap ${
+              activeTab === 'generator'
+                ? 'bg-white text-stone-900 shadow-xs border border-stone-200 font-bold'
+                : 'text-stone-600 hover:text-stone-900 hover:bg-white/60'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-purple-600" />
+            <span>Formatta Post FB</span>
+          </button>
+
+          <button
+            id="tab-admin-adsense"
+            onClick={() => setActiveTab('adsense')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all whitespace-nowrap ${
+              activeTab === 'adsense'
+                ? 'bg-white text-stone-900 shadow-xs border border-stone-200 font-bold'
+                : 'text-stone-600 hover:text-stone-900 hover:bg-white/60'
+            }`}
+          >
+            <Settings className="w-4 h-4 text-amber-600" />
+            <span>Banner AdSense</span>
+            {adConfig?.enabled && (
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            )}
+          </button>
+
           <button
             id="tab-admin-catalog"
             onClick={() => setActiveTab('catalog')}
@@ -563,19 +692,19 @@ export const AdminImportPanel: React.FC<AdminImportPanelProps> = ({
           </button>
 
           <button
-            id="tab-admin-importer"
-            onClick={() => setActiveTab('importer')}
+            id="tab-admin-subscribers"
+            onClick={() => setActiveTab('subscribers')}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all whitespace-nowrap ${
-              activeTab === 'importer'
+              activeTab === 'subscribers'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200 font-bold'
                 : 'text-stone-600 hover:text-stone-900 hover:bg-white/60'
             }`}
           >
-            <UploadCloud className="w-4 h-4 text-amber-600" />
-            <span>Importatore Multifunzione</span>
-            {previewListings.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
-                {previewListings.length}
+            <Mail className="w-4 h-4 text-emerald-600" />
+            <span>Iscritti & Newsletter</span>
+            {subscribersList.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                {subscribersList.length}
               </span>
             )}
           </button>
@@ -589,7 +718,7 @@ export const AdminImportPanel: React.FC<AdminImportPanelProps> = ({
                 : 'text-stone-600 hover:text-stone-900 hover:bg-white/60'
             }`}
           >
-            <Sparkles className="w-4 h-4 text-amber-600" />
+            <RefreshCw className="w-4 h-4 text-amber-600" />
             <span>Manutenzione & Duplicati</span>
           </button>
 
@@ -952,29 +1081,51 @@ export const AdminImportPanel: React.FC<AdminImportPanelProps> = ({
               {/* Mode: URLs */}
               {importMode === 'urls' && (
                 <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-xs space-y-4">
-                  <div>
-                    <h3 className="font-bold text-stone-900 text-sm">Import Rapido da Link Esterni</h3>
-                    <p className="text-xs text-stone-500">
-                      Incolla uno o più link di annunci (es. da Immobiliare.it), uno per riga. Il parser genererà le schede alloggio collegate.
-                    </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="font-bold text-stone-900 text-sm">Import Rapido da Link Esterni</h3>
+                      <p className="text-xs text-stone-500">
+                        Incolla uno o più link di annunci (es. da Immobiliare.it), uno per riga. Il parser genererà le schede alloggio collegate.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sampleUrls = `https://www.immobiliare.it/annunci/132459832/\nhttps://www.immobiliare.it/annunci/132924160/\nhttps://www.immobiliare.it/annunci/132938174/`;
+                        setUrlBatchText(sampleUrls);
+                        handleProcessUrlBatch(sampleUrls);
+                      }}
+                      className="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-xl transition-colors shrink-0"
+                    >
+                      + Incolla 3 Link di Esempio
+                    </button>
                   </div>
 
-                  <textarea
-                    id="admin-urls-textarea"
-                    rows={6}
-                    value={urlBatchText}
-                    onChange={(e) => setUrlBatchText(e.target.value)}
-                    placeholder="https://www.immobiliare.it/annunci/132459832/&#10;https://www.immobiliare.it/annunci/132924160/&#10;https://www.immobiliare.it/annunci/132938174/"
-                    className="w-full p-3 rounded-xl border border-stone-200 bg-stone-50 text-xs font-mono text-stone-800 focus:outline-hidden focus:border-amber-500 focus:bg-white resize-none"
-                  />
+                  <div className="relative">
+                    <textarea
+                      id="admin-urls-textarea"
+                      rows={6}
+                      value={urlBatchText}
+                      onChange={(e) => setUrlBatchText(e.target.value)}
+                      placeholder="https://www.immobiliare.it/annunci/132459832/&#10;https://www.immobiliare.it/annunci/132924160/&#10;https://www.immobiliare.it/annunci/132938174/"
+                      className="w-full p-3 rounded-xl border border-stone-200 bg-stone-50 text-xs font-mono text-stone-800 focus:outline-hidden focus:border-amber-500 focus:bg-white resize-none"
+                    />
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={handleProcessUrlBatch}
-                    className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-colors"
-                  >
-                    Genera Schede da Link
-                  </button>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleProcessUrlBatch()}
+                      className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>1. Genera Schede da Link</span>
+                    </button>
+
+                    <span className="text-[11px] text-stone-400">
+                      I link inseriti verranno collegati e verificati con anteprima prima del salvataggio.
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -1135,23 +1286,252 @@ export const AdminImportPanel: React.FC<AdminImportPanelProps> = ({
                       id="admin-btn-commit-import"
                       disabled={isProcessing}
                       onClick={handleCommitPreviewToDb}
-                      className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-60 mt-4"
+                      className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-60 mt-4"
                     >
                       <Sparkles className="w-4 h-4" />
                       <span>
                         {isProcessing 
                           ? 'Sincronizzazione in corso...' 
-                          : `Salva ${previewListings.length} Annunci in Firestore`}
+                          : `2. Salva ${previewListings.length} Annunci nel Database Reale`}
                       </span>
                     </button>
                   </div>
                 )}
               </div>
+
+              {/* Verification Help Box */}
+              <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 text-xs text-stone-600 space-y-2">
+                <div className="font-bold text-stone-800 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Come verificare gli annunci importati:</span>
+                </div>
+                <ul className="text-[11px] text-stone-500 space-y-1.5 list-disc list-inside">
+                  <li><strong>Nel Catalogo Admin:</strong> Clicca sul tab in alto <em>"Catalogo Annunci"</em> per vederli tutti con badge rosso <code>Immobiliare.it</code> e link diretto.</li>
+                  <li><strong>Sul Portale Pubblico:</strong> Chiudi il pannello per vedere subito le nuove schede nel feed degli alloggi e sulla mappa.</li>
+                  <li><strong>Nel Database Cloud:</strong> Vengono salvati istantaneamente nella collection Firestore permanente.</li>
+                </ul>
+              </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: MAINTENANCE & DUPLICATES */}
+        {/* TAB: FORMATTA POST FB (EXCLUSIVE TO ADMIN PANEL) */}
+        {activeTab === 'generator' && (
+          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-stone-200 shadow-xs">
+            <div className="mb-6 pb-4 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-600" />
+                  <span>{isIt ? 'Formatta Post per Facebook (Admin)' : 'Facebook Post Formatter (Admin)'}</span>
+                </h2>
+                <p className="text-xs text-stone-500 mt-1">
+                  {isIt
+                    ? 'Strumento riservato agli amministratori per generare post ottimizzati con formattazione, emoji, zone e hashtag per il gruppo Facebook "Affitti Milano".'
+                    : 'Admin-exclusive tool to generate formatted posts for Facebook community groups.'}
+                </p>
+              </div>
+              <a
+                href={FACEBOOK_GROUP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors border border-blue-200 shrink-0"
+              >
+                <span>{isIt ? 'Apri Gruppo FB' : 'Open FB Group'}</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+            <PostGeneratorView lang={lang} />
+          </div>
+        )}
+
+        {/* TAB: BANNER ADSENSE (EXCLUSIVE TO ADMIN PANEL) */}
+        {activeTab === 'adsense' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-stone-200 shadow-xs">
+              <div className="mb-6 pb-4 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-amber-600" />
+                    <span>{isIt ? 'Gestione Banner & Sponsor (Admin)' : 'Banners & Sponsor Management (Admin)'}</span>
+                  </h2>
+                  <p className="text-xs text-stone-500 mt-1">
+                    {isIt 
+                      ? 'Pannello per configurare Google AdSense, banner con codice HTML/JS, immagini con link e annunci solo testo.'
+                      : 'Configuration panel for Google AdSense slots, HTML/JS code snippets, image banners, and text sponsor cards.'}
+                  </p>
+                </div>
+                {onOpenAdSenseModal && (
+                  <button
+                    id="btn-admin-open-adsense-modal"
+                    type="button"
+                    onClick={onOpenAdSenseModal}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold transition-colors shadow-xs shrink-0"
+                  >
+                    <Settings className="w-4 h-4 text-stone-950" />
+                    <span>{isIt ? 'Gestisci Tutti i Banner' : 'Manage All Banners'}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Status summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="p-4 rounded-xl bg-stone-50 border border-stone-200">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    {isIt ? 'Stato Banner Globale' : 'Global Banners Status'}
+                  </span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`w-3 h-3 rounded-full ${adConfig?.enabled ? 'bg-emerald-500 animate-pulse' : 'bg-stone-300'}`} />
+                    <span className="text-sm font-bold text-stone-900">
+                      {adConfig?.enabled ? (isIt ? 'Attivo sul Portale' : 'Active on Portal') : (isIt ? 'Disattivato' : 'Disabled')}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-stone-50 border border-stone-200">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    AdSense Publisher ID
+                  </span>
+                  <div className="mt-1">
+                    <code className="text-xs font-mono font-bold text-stone-800 bg-stone-200/80 px-2 py-0.5 rounded">
+                      {adConfig?.publisherId || 'ca-pub-5738943819550045'}
+                    </code>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-stone-50 border border-stone-200">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    {isIt ? 'Modalità di Visualizzazione' : 'Display Mode'}
+                  </span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${adConfig?.testMode ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'}`}>
+                      {adConfig?.testMode ? (isIt ? 'Test / Preview' : 'Test / Preview') : (isIt ? 'Live Produzione' : 'Production Live')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Official Script Box Display */}
+              <div className="mb-6 p-4 rounded-2xl bg-stone-900 text-stone-200 border border-stone-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-white">
+                    <Code2 className="w-4 h-4 text-amber-400" />
+                    <span>{isIt ? 'Script Google AdSense Attivo in index.html:' : 'Active Google AdSense Script:'}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adConfig?.publisherId || 'ca-pub-5738943819550045'}" crossorigin="anonymous"></script>`);
+                      if (onNotification) onNotification('Codice AdSense copiato negli appunti!');
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-amber-400 text-xs font-bold transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{isIt ? 'Copia Tag' : 'Copy Tag'}</span>
+                  </button>
+                </div>
+                <code className="block p-2.5 rounded-xl bg-stone-950 font-mono text-[11px] text-emerald-400 overflow-x-auto border border-stone-800 select-all">
+                  {`<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adConfig?.publisherId || 'ca-pub-5738943819550045'}" crossorigin="anonymous"></script>`}
+                </code>
+              </div>
+
+              {/* Slots overview */}
+              <div className="border border-stone-200 rounded-xl overflow-hidden">
+                <div className="bg-stone-100 px-4 py-3 border-b border-stone-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-stone-800">
+                      {isIt ? 'Tutti i Banner Configurati' : 'Configured Banners'}
+                    </span>
+                    <span className="text-[11px] text-stone-500">
+                      ({adConfig?.banners?.filter(b => b.active).length || 0} {isIt ? 'attivi su' : 'active of'} {adConfig?.banners?.length || 0})
+                    </span>
+                  </div>
+
+                  {onOpenAdSenseModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenAdSenseModal}
+                      className="text-xs text-amber-800 hover:text-amber-900 font-bold inline-flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{isIt ? 'Aggiungi / Modifica' : 'Add / Edit'}</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="divide-y divide-stone-100">
+                  {(adConfig?.banners || []).map((b) => {
+                    const bType = b.type || (b.customSnippet ? 'code' : 'adsense');
+
+                    return (
+                      <div key={b.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white hover:bg-stone-50/50">
+                        <div className="flex items-start sm:items-center gap-3">
+                          <span className={`w-2.5 h-2.5 rounded-full mt-1 sm:mt-0 ${b.active ? 'bg-emerald-500' : 'bg-stone-300'}`} />
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-bold text-stone-900">{b.name}</span>
+                              
+                              {/* Type Badge */}
+                              <span className={`px-2 py-0.2 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                bType === 'image'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : bType === 'text'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  : bType === 'code'
+                                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                  : 'bg-amber-50 text-amber-800 border-amber-200'
+                              }`}>
+                                {bType === 'image' && '🖼️ Immagine + Link'}
+                                {bType === 'text' && '📝 Solo Testo + Link'}
+                                {bType === 'code' && '💻 Codice HTML / JS'}
+                                {bType === 'adsense' && '🟡 Google AdSense'}
+                              </span>
+
+                              <span className="text-[10px] uppercase font-semibold bg-stone-100 text-stone-600 px-1.5 py-0.2 rounded">
+                                {b.position}
+                              </span>
+                            </div>
+
+                            <div className="text-[11px] text-stone-500 mt-1">
+                              {bType === 'image' && b.targetUrl && (
+                                <span className="font-mono text-[10px] text-blue-700">Link: {b.targetUrl}</span>
+                              )}
+                              {bType === 'text' && (
+                                <span>{b.title || b.name} {b.targetUrl ? `• ${b.targetUrl}` : ''}</span>
+                              )}
+                              {bType === 'code' && (
+                                <span className="font-mono text-[10px] text-purple-700">Snippet HTML personalizzato</span>
+                              )}
+                              {bType === 'adsense' && (
+                                <span className="font-mono text-[10px] text-stone-500">Slot ID: {b.slotId || '1234567890'} • Formato: {b.format}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${b.active ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
+                            {b.active ? (isIt ? 'Abilitato' : 'Enabled') : (isIt ? 'Disabilitato' : 'Disabled')}
+                          </span>
+
+                          {onOpenAdSenseModal && (
+                            <button
+                              type="button"
+                              onClick={onOpenAdSenseModal}
+                              className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100"
+                              title={isIt ? 'Modifica banner' : 'Edit banner'}
+                            >
+                              <Settings className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {activeTab === 'maintenance' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Card 1: Restore Default Catalog */}
@@ -1228,6 +1608,22 @@ export const AdminImportPanel: React.FC<AdminImportPanelProps> = ({
               </div>
             </div>
           </div>
+        )}
+
+        {/* TAB: SUBSCRIBERS & NEWSLETTERS */}
+        {activeTab === 'subscribers' && (
+          <AdminSubscribersPanel
+            subscribers={subscribersList}
+            users={usersList}
+            notifications={notificationsList}
+            newsletters={newslettersList}
+            listings={listings}
+            adminUser={user}
+            isIt={isIt}
+            onNotification={onNotification}
+            onRefresh={onRefreshListings}
+            onSelectListing={onSelectListing}
+          />
         )}
 
         {/* TAB 4: SYSTEM LOGS */}

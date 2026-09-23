@@ -16,5 +16,26 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Site settings & AdSense banners configuration
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Newsletter & Alert Subscribers
+    match /subscribers/{subscriberId} {
+      allow read, write: if true;
+    }
+
+    // In-App Notifications
+    match /notifications/{notificationId} {
+      allow read, write: if true;
+    }
+
+    // Newsletters Archive
+    match /newsletters/{newsletterId} {
+      allow read, write: if true;
+    }
   }
 }

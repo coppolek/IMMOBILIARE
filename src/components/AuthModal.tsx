@@ -107,11 +107,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
       <div 
         id="auth-modal-container"
-        className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden my-8"
+        className="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-stone-200 overflow-hidden my-0 sm:my-8 max-h-[92dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200"
       >
+        {/* Mobile drag handle */}
+        <div className="pt-2 sm:hidden bg-stone-900 flex justify-center">
+          <div className="w-10 h-1 bg-stone-600 rounded-full" />
+        </div>
+
         {/* Top Header with Gradient */}
         <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-amber-950 p-6 text-white relative">
           <button

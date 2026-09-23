@@ -74,9 +74,38 @@ export const ZoneGuideView: React.FC<ZoneGuideViewProps> = ({ lang }) => {
       </div>
 
       {/* Zone Selector & Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Zone List (4 cols) */}
-        <div className="lg:col-span-4 bg-white rounded-2xl border border-stone-200 p-3 shadow-xs space-y-1">
+      <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-6 items-start">
+        {/* Mobile Horizontal Carousel for Districts */}
+        <div className="lg:hidden bg-white rounded-2xl border border-stone-200 p-3.5 shadow-xs">
+          <div className="text-xs font-bold text-stone-600 mb-2 px-1">
+            {isIt ? 'Scegli un quartiere da confrontare:' : 'Choose a district to explore:'}
+          </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+            {MILAN_ZONES.map((zone) => {
+              const isSelected = selectedZone.id === zone.id;
+              return (
+                <button
+                  key={zone.id}
+                  id={`mobile-zone-chip-${zone.id}`}
+                  onClick={() => setSelectedZone(zone)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all border text-left ${
+                    isSelected
+                      ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-xs'
+                      : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                  }`}
+                >
+                  <div>{zone.name}</div>
+                  <div className={`text-[10px] ${isSelected ? 'text-stone-950 font-extrabold' : 'text-stone-400 font-normal'}`}>
+                    ~€{zone.averageSingleRoom}/m
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Desktop Zone List (4 cols) */}
+        <div className="hidden lg:block lg:col-span-4 bg-white rounded-2xl border border-stone-200 p-3 shadow-xs space-y-1">
           <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-stone-400">
             {isIt ? 'Quartieri Universitari' : 'University Districts'}
           </div>

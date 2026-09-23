@@ -9,17 +9,23 @@ import {
   Download, 
   Sparkles,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert,
+  Lock,
+  LogIn
 } from 'lucide-react';
-import { Listing } from '../types';
+import { Listing, UserProfile } from '../types';
 import { parseCSVToListings, parseRSSToListings } from '../utils/importer';
 import { IMPORTED_CSV_RAW } from '../data/importedListingsRaw';
+import { isUserAdmin } from '../services/authService';
 
 interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImportListings: (listings: Listing[]) => void;
   lang: 'it' | 'en';
+  user: UserProfile | null;
+  onOpenAuth?: (mode?: 'login' | 'register') => void;
 }
 
 export const ImportModal: React.FC<ImportModalProps> = ({
@@ -27,9 +33,12 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   onClose,
   onImportListings,
   lang,
+  user,
+  onOpenAuth,
 }) => {
   if (!isOpen) return null;
   const isIt = lang === 'it';
+  const isAdmin = isUserAdmin(user);
 
   const [activeMode, setActiveMode] = useState<'csv' | 'rss'>('csv');
   
@@ -45,6 +54,72 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const [parsedPreview, setParsedPreview] = useState<Listing[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Non-admin view lock screen
+  if (!isAdmin) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <div 
+          id="import-modal-restricted"
+          className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-md w-full overflow-hidden p-6 text-center animate-in fade-in zoom-in-95 duration-200 space-y-4"
+        >
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-100 border border-amber-200 text-amber-800 flex items-center justify-center shadow-xs">
+            <Lock className="w-7 h-7 text-amber-700" />
+          </div>
+
+          <div>
+            <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800 mb-2">
+              {isIt ? 'Accesso Riservato Amministratore' : 'Admin Restricted Access'}
+            </span>
+            <h3 className="font-bold text-stone-900 text-lg font-serif">
+              {isIt ? 'Importazione Riservata all\'Admin' : 'Admin-Only Import Access'}
+            </h3>
+            <p className="text-xs text-stone-600 mt-2 leading-relaxed">
+              {isIt 
+                ? 'L\'importazione massiva degli annunci alloggi via Feed RSS o file CSV è una funzionalità riservata esclusivamente all\'amministratore della community (coppolek@gmail.com).' 
+                : 'Batch importing housing listings via RSS Feed or CSV files is strictly reserved for the community administrator (coppolek@gmail.com).'}
+            </p>
+          </div>
+
+          <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200 text-[11px] text-stone-500 text-left space-y-1">
+            <div className="font-semibold text-stone-700 flex items-center gap-1.5">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+              <span>{isIt ? 'Stato autorizzazione' : 'Authorization Status'}</span>
+            </div>
+            <p>
+              {user 
+                ? (isIt ? `Collegato come: ${user.email || 'Utente'}` : `Signed in as: ${user.email || 'User'}`)
+                : (isIt ? 'Non sei autenticato come amministratore.' : 'Not signed in as administrator.')}
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col gap-2">
+            {!user ? (
+              <button
+                id="btn-import-auth-admin"
+                onClick={() => {
+                  onClose();
+                  if (onOpenAuth) onOpenAuth('login');
+                }}
+                className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 text-xs"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>{isIt ? 'Accedi come Amministratore' : 'Sign in as Administrator'}</span>
+              </button>
+            ) : null}
+
+            <button
+              id="btn-close-import-restricted"
+              onClick={onClose}
+              className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold rounded-xl text-xs transition-colors"
+            >
+              {isIt ? 'Chiudi' : 'Close'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const sampleCSVTemplate = `title,roomType,price,billsIncluded,depositMonths,zone,address,metroStation,metroLine,metroWalkingMinutes,availableFrom,photos,description,authorName
 "Stanza singola moderna e luminosa a Lambrate M2",singola,680,true,2,"Lambrate / NoLo","Via Porpora 80, Milano","Lambrate FS",M2,3,"01/10/2026","https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80|https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=1200&q=80","Affitto ampia camera singola totalmente ristrutturata per studenti universitari (vicino PoliMi Leonardo). Balcone privato, scrivania da studio e connessione fibra 1Gbps inclusa nel canone.","Marco R."
@@ -151,11 +226,17 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               <UploadCloud className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-stone-900 text-base font-serif">
-                {isIt ? 'Importa Annunci Alloggi' : 'Import Rental Listings'}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-stone-900 text-base font-serif">
+                  {isIt ? 'Importa Annunci Alloggi' : 'Import Rental Listings'}
+                </h3>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-md border border-amber-300">
+                  <ShieldAlert className="w-3 h-3 text-amber-700" />
+                  <span>Admin</span>
+                </span>
+              </div>
               <p className="text-[11px] text-stone-500">
-                {isIt ? 'Carica file CSV o sincronizza tramite feed URL RSS' : 'Upload via CSV file or sync with an RSS Feed URL'}
+                {isIt ? 'Carica file CSV o sincronizza tramite feed URL RSS (Accesso Admin)' : 'Upload via CSV file or sync with an RSS Feed URL (Admin Access)'}
               </p>
             </div>
           </div>

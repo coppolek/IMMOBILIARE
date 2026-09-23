@@ -8,7 +8,6 @@ import { Header } from './components/Header';
 import { ListingsView } from './components/ListingsView';
 import { SeekersView } from './components/SeekersView';
 import { PostGeneratorView } from './components/PostGeneratorView';
-import { ScamDetectorView } from './components/ScamDetectorView';
 import { ZoneGuideView } from './components/ZoneGuideView';
 import { ListingDetailModal } from './components/ListingDetailModal';
 import { AddListingModal } from './components/AddListingModal';
@@ -16,17 +15,28 @@ import { AddSeekerModal } from './components/AddSeekerModal';
 import { ImportModal } from './components/ImportModal';
 import { AuthModal } from './components/AuthModal';
 import { UserProfileModal } from './components/UserProfileModal';
+import { AdBanner } from './components/AdBanner';
+import { AdminAdSenseModal } from './components/AdminAdSenseModal';
+import { AdminImportPanel } from './components/AdminImportPanel';
+import { ShareListingModal } from './components/ShareListingModal';
+import { NotificationCenterModal } from './components/NotificationCenterModal';
+import { NewsletterSubscribeModal } from './components/NewsletterSubscribeModal';
+import { NewsletterWidget } from './components/NewsletterWidget';
 import { INITIAL_LISTINGS, INITIAL_SEEKERS, FACEBOOK_GROUP_URL, FACEBOOK_GROUP_ID } from './data/milanData';
-import { Listing, SeekerProfile, UserProfile } from './types';
+import { Listing, SeekerProfile, UserProfile, AdSenseConfig, AppNotification } from './types';
 import { 
   seedInitialDataIfEmpty, 
   subscribeToListings, 
   subscribeToSeekers, 
   saveListingToFirestore, 
   saveMultipleListingsToFirestore,
-  saveSeekerToFirestore 
+  saveSeekerToFirestore,
+  subscribeToAdSenseConfig,
+  saveAdSenseConfig,
+  getDefaultAdSenseConfig
 } from './services/dbService';
-import { subscribeToAuth } from './services/authService';
+import { subscribeToAuth, isUserAdmin } from './services/authService';
+import { subscribeToNotifications, seedNotificationDataIfEmpty } from './services/subscriberService';
 import { 
   Building2, 
   ExternalLink, 
@@ -36,18 +46,33 @@ import {
   MessageSquare,
   Sparkles,
   MapPin,
-  Database
+  Database,
+  Settings
 } from 'lucide-react';
 
 export default function App() {
   const [lang, setLang] = useState<'it' | 'en'>('it');
-  const [activeTab, setActiveTab] = useState<'listings' | 'seekers' | 'generator' | 'scamDetector' | 'zones'>('listings');
+  const [activeTab, setActiveTab] = useState<'listings' | 'seekers' | 'zones'>('listings');
+  
+  // Admin Panel Full View State
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [adminPanelInitialTab, setAdminPanelInitialTab] = useState<'importer' | 'generator' | 'adsense' | 'catalog' | 'maintenance' | 'logs' | 'subscribers'>('importer');
   
   const [listings, setListings] = useState<Listing[]>(INITIAL_LISTINGS);
   const [seekers, setSeekers] = useState<SeekerProfile[]>(INITIAL_SEEKERS);
   const [dbConnected, setDbConnected] = useState(false);
   
+  // Google AdSense state
+  const [adConfig, setAdConfig] = useState<AdSenseConfig>(getDefaultAdSenseConfig());
+  const [isAdminAdSenseOpen, setIsAdminAdSenseOpen] = useState(false);
+
+  // In-App Notifications & Newsletter state
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [isNewsletterModalOpen, setIsNewsletterModalOpen] = useState(false);
+
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [sharingListing, setSharingListing] = useState<Listing | null>(null);
   const [isAddListingOpen, setIsAddListingOpen] = useState(false);
   const [isAddSeekerOpen, setIsAddSeekerOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -58,15 +83,81 @@ export default function App() {
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  const handleOpenAdminPanel = (tab: 'importer' | 'generator' | 'adsense' | 'catalog' | 'maintenance' | 'logs' | 'subscribers' = 'importer') => {
+    setAdminPanelInitialTab(tab);
+    setIsAdminPanelOpen(true);
+  };
+
+  // Helper to determine unread notifications
+  const getIsNotificationRead = (notif: AppNotification): boolean => {
+    if (user && notif.readBy && notif.readBy.includes(user.uid)) return true;
+    try {
+      const readSet: string[] = JSON.parse(localStorage.getItem('milan_read_notifications') || '[]');
+      return readSet.includes(notif.id);
+    } catch {
+      return false;
+    }
+  };
+
+  const unreadNotificationsCount = notifications.filter(n => !getIsNotificationRead(n)).length;
+
+  // Deep-linking: auto-open listing if ?listing= or ?id= is in URL
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const listingId = params.get('listing') || params.get('id');
+    if (listingId && listings.length > 0) {
+      const found = listings.find((l) => l.id === listingId);
+      if (found) {
+        setSelectedListing(found);
+      }
+    }
+  }, [listings]);
+
+  // Sync browser URL and document title when selectedListing changes
+  const handleSelectListing = (listing: Listing | null) => {
+    setSelectedListing(listing);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (listing) {
+        url.searchParams.set('listing', listing.id);
+        window.history.replaceState({}, '', url.toString());
+        document.title = `${listing.title} • €${listing.price}/m • Affitti Milano`;
+      } else {
+        url.searchParams.delete('listing');
+        url.searchParams.delete('id');
+        const cleanPath = url.pathname + (url.search ? url.search : '');
+        window.history.replaceState({}, '', cleanPath);
+        document.title = 'Affitti Milano • Stanze e Alloggi Universitari';
+      }
+    }
+  };
+
   // Initialize Firestore and setup real-time subscriptions
   useEffect(() => {
     let unsubscribeListings: (() => void) | undefined;
     let unsubscribeSeekers: (() => void) | undefined;
     let unsubscribeAuth: (() => void) | undefined;
+    let unsubscribeAdSense: (() => void) | undefined;
+    let unsubscribeNotifications: (() => void) | undefined;
 
     // Listen to Firebase Auth state changes
     unsubscribeAuth = subscribeToAuth((currentUser) => {
       setUser(currentUser);
+    });
+
+    // Listen to Google AdSense configuration in real time
+    unsubscribeAdSense = subscribeToAdSenseConfig((cfg) => {
+      if (cfg) {
+        setAdConfig(cfg);
+      }
+    });
+
+    // Listen to in-app notifications in real time
+    unsubscribeNotifications = subscribeToNotifications((notifs) => {
+      if (notifs) {
+        setNotifications(notifs);
+      }
     });
 
     // Start subscriptions immediately
@@ -90,6 +181,7 @@ export default function App() {
     const initDb = async () => {
       try {
         await seedInitialDataIfEmpty();
+        await seedNotificationDataIfEmpty();
         setDbConnected(true);
       } catch (err) {
         console.warn('Database initialization warning:', err);
@@ -102,30 +194,30 @@ export default function App() {
       if (unsubscribeAuth) unsubscribeAuth();
       if (unsubscribeListings) unsubscribeListings();
       if (unsubscribeSeekers) unsubscribeSeekers();
+      if (unsubscribeAdSense) unsubscribeAdSense();
+      if (unsubscribeNotifications) unsubscribeNotifications();
     };
   }, []);
 
-  // Context passed when clicking "Verifica con AI" from an ad
-  const [scamCheckTarget, setScamCheckTarget] = useState<{
-    text: string;
-    price?: number;
-    zone?: string;
-  } | null>(null);
+  const handleSaveAdSenseConfig = async (newConfig: AdSenseConfig) => {
+    setAdConfig(newConfig);
+    try {
+      await saveAdSenseConfig(newConfig, user?.email);
+      showNotification(
+        lang === 'it' 
+          ? 'Configurazione Google AdSense salvata nel Cloud!' 
+          : 'Google AdSense settings saved to Cloud DB!'
+      );
+    } catch (err) {
+      console.error('Error persisting AdSense config:', err);
+    }
+  };
 
   const [notification, setNotification] = useState<string | null>(null);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3500);
-  };
-
-  const handleVerifyAI = (listing: Listing) => {
-    setScamCheckTarget({
-      text: `${listing.title}\n${listing.description}\nZona: ${listing.zone} - ${listing.address}\nCanone: €${listing.price}/mese + spese €${listing.billsEstimate}\nCaparra: ${listing.depositMonths} mensilità\nContratto: ${listing.contractType}`,
-      price: listing.price,
-      zone: listing.zone,
-    });
-    setActiveTab('scamDetector');
   };
 
   const handleAddListing = async (newListing: Listing) => {
@@ -157,6 +249,15 @@ export default function App() {
   const handleImportListings = async (importedListings: Listing[]) => {
     if (importedListings.length === 0) return;
 
+    if (!isUserAdmin(user)) {
+      showNotification(
+        lang === 'it' 
+          ? 'Operazione negata: solo l\'amministratore (coppolek@gmail.com) può importare alloggi.' 
+          : 'Access denied: only the administrator (coppolek@gmail.com) can import listings.'
+      );
+      return;
+    }
+
     // Optimistic UI update
     setListings((prev) => [...importedListings, ...prev]);
     showNotification(
@@ -183,7 +284,6 @@ export default function App() {
         setActiveTab={setActiveTab}
         onOpenAddListing={() => setIsAddListingOpen(true)}
         onOpenAddSeeker={() => setIsAddSeekerOpen(true)}
-        onOpenImport={() => setIsImportModalOpen(true)}
         lang={lang}
         setLang={setLang}
         dbConnected={dbConnected}
@@ -193,7 +293,22 @@ export default function App() {
           setIsAuthModalOpen(true);
         }}
         onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenAdminPanel={() => handleOpenAdminPanel('importer')}
+        adConfig={adConfig}
+        unreadNotificationsCount={unreadNotificationsCount}
+        onOpenNotifications={() => setIsNotificationCenterOpen(true)}
+        onOpenNewsletter={() => setIsNewsletterModalOpen(true)}
       />
+
+      {/* Top Header Leaderboard AdSense Banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <AdBanner 
+          position="header" 
+          config={adConfig} 
+          onOpenAdmin={() => handleOpenAdminPanel('adsense')} 
+          isAdmin={isUserAdmin(user)} 
+        />
+      </div>
 
       {/* Floating Notification Toast */}
       {notification && (
@@ -203,50 +318,87 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {activeTab === 'listings' && (
-          <ListingsView
+      {/* Main Content Area or Admin Control Panel */}
+      {isAdminPanelOpen && isUserAdmin(user) ? (
+        <div className="flex-1 w-full pb-12">
+          <AdminImportPanel
             listings={listings}
-            onSelectListing={(l) => setSelectedListing(l)}
-            onVerifyWithAI={handleVerifyAI}
-            onOpenAddListing={() => setIsAddListingOpen(true)}
-            onOpenImport={() => setIsImportModalOpen(true)}
+            user={user}
             lang={lang}
+            initialTab={adminPanelInitialTab}
+            adConfig={adConfig}
+            onSaveAdSenseConfig={saveAdSenseConfig}
+            onOpenAdSenseModal={() => setIsAdminAdSenseOpen(true)}
+            onOpenImportModal={() => setIsImportModalOpen(true)}
+            onNotification={(msg) => showNotification(msg)}
+            onBackToApp={() => setIsAdminPanelOpen(false)}
+            onSelectListing={(id) => {
+              const found = listings.find(l => l.id === id);
+              if (found) {
+                setIsAdminPanelOpen(false);
+                setSelectedListing(found);
+              }
+            }}
           />
-        )}
+        </div>
+      ) : (
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          {activeTab === 'listings' && (
+            <ListingsView
+              listings={listings}
+              onSelectListing={handleSelectListing}
+              onShareListing={(l) => setSharingListing(l)}
+              onOpenAddListing={() => setIsAddListingOpen(true)}
+              lang={lang}
+              adConfig={adConfig}
+              onOpenAdSenseAdmin={() => handleOpenAdminPanel('adsense')}
+              isAdmin={isUserAdmin(user)}
+            />
+          )}
 
-        {activeTab === 'seekers' && (
-          <SeekersView
-            seekers={seekers}
-            onOpenAddSeeker={() => setIsAddSeekerOpen(true)}
-            lang={lang}
-          />
-        )}
+          {activeTab === 'seekers' && (
+            <SeekersView
+              seekers={seekers}
+              onOpenAddSeeker={() => setIsAddSeekerOpen(true)}
+              lang={lang}
+            />
+          )}
 
-        {activeTab === 'generator' && (
-          <PostGeneratorView lang={lang} />
-        )}
+          {activeTab === 'zones' && (
+            <ZoneGuideView lang={lang} />
+          )}
 
-        {activeTab === 'scamDetector' && (
-          <ScamDetectorView
-            initialText={scamCheckTarget?.text}
-            initialPrice={scamCheckTarget?.price}
-            initialZone={scamCheckTarget?.zone}
-            lang={lang}
-          />
-        )}
+          {/* Newsletter Opt-in Banner Widget */}
+          <NewsletterWidget isIt={isIt} onNotification={showNotification} />
+        </main>
+      )}
 
-        {activeTab === 'zones' && (
-          <ZoneGuideView lang={lang} />
-        )}
-      </main>
+      {/* Footer Banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mb-4">
+        <AdBanner 
+          position="footer" 
+          config={adConfig} 
+          onOpenAdmin={() => setIsAdminAdSenseOpen(true)} 
+          isAdmin={isUserAdmin(user)} 
+        />
+      </div>
 
       {/* Detail & Action Modals */}
       <ListingDetailModal
         listing={selectedListing}
-        onClose={() => setSelectedListing(null)}
-        onVerifyAI={handleVerifyAI}
+        onClose={() => handleSelectListing(null)}
+        lang={lang}
+        adConfig={adConfig}
+        onOpenAdSenseAdmin={() => setIsAdminAdSenseOpen(true)}
+        isAdmin={isUserAdmin(user)}
+        onShare={(l) => setSharingListing(l)}
+      />
+
+      {/* Dedicated Social Share Modal */}
+      <ShareListingModal
+        listing={sharingListing}
+        isOpen={!!sharingListing}
+        onClose={() => setSharingListing(null)}
         lang={lang}
       />
 
@@ -271,6 +423,11 @@ export default function App() {
         onClose={() => setIsImportModalOpen(false)}
         onImportListings={handleImportListings}
         lang={lang}
+        user={user}
+        onOpenAuth={(mode) => {
+          setAuthModalMode(mode || 'login');
+          setIsAuthModalOpen(true);
+        }}
       />
 
       <AuthModal
@@ -291,11 +448,50 @@ export default function App() {
             setUser(updated);
             showNotification(isIt ? 'Profilo salvato!' : 'Profile saved!');
           }}
+          onOpenAdminPanel={() => handleOpenAdminPanel('importer')}
+          onOpenGenerator={() => handleOpenAdminPanel('generator')}
+          onOpenImport={() => handleOpenAdminPanel('importer')}
+          onOpenAdSenseAdmin={() => handleOpenAdminPanel('adsense')}
+          onOpenSubscribers={() => handleOpenAdminPanel('subscribers')}
         />
       )}
 
+      {/* Admin AdSense Modal */}
+      <AdminAdSenseModal
+        isOpen={isAdminAdSenseOpen}
+        onClose={() => setIsAdminAdSenseOpen(false)}
+        config={adConfig}
+        onSaveConfig={handleSaveAdSenseConfig}
+        lang={lang}
+        userEmail={user?.email}
+      />
+
+      {/* Real-time In-App Notification Center Modal */}
+      <NotificationCenterModal
+        isOpen={isNotificationCenterOpen}
+        onClose={() => setIsNotificationCenterOpen(false)}
+        notifications={notifications}
+        user={user}
+        onSelectListing={(id) => {
+          const found = listings.find(l => l.id === id);
+          if (found) {
+            handleSelectListing(found);
+          }
+        }}
+        isIt={isIt}
+      />
+
+      {/* Newsletter Subscription Modal */}
+      <NewsletterSubscribeModal
+        isOpen={isNewsletterModalOpen}
+        onClose={() => setIsNewsletterModalOpen(false)}
+        user={user}
+        isIt={isIt}
+        onNotification={(msg) => showNotification(msg)}
+      />
+
       {/* Community Footer */}
-      <footer id="app-footer" className="bg-white border-t border-stone-200 py-10 mt-12">
+      <footer id="app-footer" className="bg-white border-t border-stone-200 pt-10 pb-28 md:py-10 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8 text-xs">
             {/* Brand column */}
@@ -348,10 +544,7 @@ export default function App() {
                 {isIt ? 'Sicurezza & Diritti' : 'Safety & Rights'}
               </h4>
               <ul className="space-y-2 text-stone-600">
-                <li className="flex items-center gap-1 text-emerald-700 font-semibold">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>AI Scam Detector</span>
-                </li>
+                <li>• {isIt ? 'Annunci Verificati Community' : 'Verified Community Listings'}</li>
                 <li>• Max 3 mensilità di caparra (L. 392/78)</li>
                 <li>• Registrazione Agenzia delle Entrate RLI</li>
                 <li>• Contratti Transitori Studenti</li>
@@ -364,7 +557,20 @@ export default function App() {
             <div>
               © 2026 Affitti Milano Community • Gruppo Facebook ID 477013955229676
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-3">
+              {isUserAdmin(user) && (
+                <>
+                  <button
+                    id="footer-admin-panel-btn"
+                    onClick={() => handleOpenAdminPanel('importer')}
+                    className="inline-flex items-center gap-1 text-[11px] text-amber-700 hover:text-amber-800 transition-colors font-bold"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{isIt ? 'Pannello Admin' : 'Admin Panel'}</span>
+                  </button>
+                  <span className="hidden sm:inline">•</span>
+                </>
+              )}
               <span>{isIt ? 'Realizzato per studenti e coinquilini a Milano' : 'Built for students and flatmates in Milan'}</span>
             </div>
           </div>

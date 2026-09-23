@@ -1,19 +1,22 @@
 import { 
   collection, 
   doc, 
+  getDoc,
   setDoc, 
   getDocs, 
   onSnapshot, 
   deleteDoc,
-  writeBatch,
+  writeBatch, 
   serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Listing, SeekerProfile } from '../types';
+import { Listing, SeekerProfile, AdSenseConfig } from '../types';
 import { INITIAL_LISTINGS, INITIAL_SEEKERS } from '../data/milanData';
 
 const LISTINGS_COLLECTION = 'listings';
 const SEEKERS_COLLECTION = 'seekers';
+const SETTINGS_COLLECTION = 'settings';
+const ADSENSE_DOC_ID = 'adsense';
 
 /**
  * Seed initial data into Firestore ensuring only the file listings are present
@@ -273,3 +276,91 @@ export async function purgeDuplicatesFromFirestore(): Promise<number> {
 
   return duplicateDocRefs.length;
 }
+
+/**
+ * Returns default Google AdSense configuration with typical banner placements
+ */
+export function getDefaultAdSenseConfig(): AdSenseConfig {
+  return {
+    enabled: true,
+    publisherId: 'ca-pub-5738943819550045',
+    testMode: false, // Set to false so the user's real AdSense publisher tag runs directly
+    banners: [
+      {
+        id: 'banner-header',
+        name: 'Banner Superiore Header (Leaderboard)',
+        type: 'adsense',
+        position: 'header',
+        slotId: '1092837465',
+        format: 'horizontal',
+        responsive: true,
+        active: true,
+      },
+      {
+        id: 'banner-feed',
+        name: 'Banner In-Feed (Tra gli Alloggi)',
+        type: 'adsense',
+        position: 'feed',
+        slotId: '2983746501',
+        format: 'rectangle',
+        responsive: true,
+        active: true,
+      },
+      {
+        id: 'banner-modal',
+        name: 'Banner Scheda Alloggio (Pop-up Dettagli)',
+        type: 'adsense',
+        position: 'listing_modal',
+        slotId: '3847561920',
+        format: 'auto',
+        responsive: true,
+        active: true,
+      },
+      {
+        id: 'banner-footer',
+        name: 'Banner Fondo Pagina (Sopra Footer)',
+        type: 'adsense',
+        position: 'footer',
+        slotId: '4758693021',
+        format: 'horizontal',
+        responsive: true,
+        active: true,
+      }
+    ],
+    updatedAt: new Date().toISOString()
+  };
+}
+
+/**
+ * Subscribes to AdSense configuration stored in Cloud Firestore
+ */
+export function subscribeToAdSenseConfig(callback: (config: AdSenseConfig) => void): () => void {
+  const docRef = doc(db, SETTINGS_COLLECTION, ADSENSE_DOC_ID);
+
+  return onSnapshot(docRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data() as AdSenseConfig;
+      callback(data);
+    } else {
+      // Return defaults if not set in cloud yet
+      callback(getDefaultAdSenseConfig());
+    }
+  }, (err) => {
+    console.warn('AdSense settings subscription error, using local defaults:', err);
+    callback(getDefaultAdSenseConfig());
+  });
+}
+
+/**
+ * Saves Google AdSense configuration in Cloud Firestore
+ */
+export async function saveAdSenseConfig(config: AdSenseConfig, userEmail?: string | null): Promise<void> {
+  const docRef = doc(db, SETTINGS_COLLECTION, ADSENSE_DOC_ID);
+  await setDoc(docRef, {
+    ...config,
+    updatedAt: new Date().toISOString(),
+    updatedBy: userEmail || 'admin',
+    dbTimestamp: serverTimestamp(),
+  }, { merge: true });
+}
+

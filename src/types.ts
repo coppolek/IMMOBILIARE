@@ -51,7 +51,7 @@ export interface Listing {
   authorAvatar: string;
   authorFbProfileUrl?: string;
   externalListingUrl?: string;
-  source?: 'immobiliare' | 'facebook' | 'diretto';
+  source?: 'immobiliare' | 'facebook' | 'diretto' | 'admin';
   verified: boolean;
   targetUniversities: University[];
   amenities: {
@@ -112,6 +112,46 @@ export interface MilanZoneInfo {
 
 export type UserRole = 'student' | 'worker' | 'landlord' | 'admin';
 
+export type AdBannerPosition = 'header' | 'feed' | 'listing_modal' | 'footer' | 'custom';
+
+export type AdBannerType = 'adsense' | 'code' | 'image' | 'text';
+
+export interface AdSenseBanner {
+  id: string;
+  name: string;
+  type?: AdBannerType; // 'adsense' | 'code' | 'image' | 'text' (defaults to 'adsense')
+  position: AdBannerPosition;
+  slotId?: string; // for adsense
+  format?: 'auto' | 'horizontal' | 'rectangle' | 'vertical';
+  responsive?: boolean;
+  
+  // For 'code' banner:
+  customSnippet?: string; // HTML, JS, iFrame or AdSense script snippet
+
+  // For 'image' banner:
+  imageUrl?: string;
+  targetUrl?: string; // Destination link URL
+  imageAlt?: string;
+  badgeText?: string; // e.g. "Sponsor", "Partner", "Promo"
+  openInNewTab?: boolean;
+
+  // For 'text' banner:
+  title?: string;
+  description?: string;
+  ctaText?: string; // e.g. "Scopri l'offerta →"
+
+  active: boolean;
+}
+
+export interface AdSenseConfig {
+  enabled: boolean;
+  publisherId: string; // e.g. "ca-pub-1234567890123456"
+  testMode: boolean;   // visual placeholder mode for previewing
+  banners: AdSenseBanner[];
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export interface UserProfile {
   uid: string;
   email: string | null;
@@ -123,5 +163,52 @@ export interface UserProfile {
   phone?: string;
   bio?: string;
   savedListingIds?: string[];
+  newsletterSubscribed?: boolean;
   createdAt?: string;
 }
+
+export interface Subscriber {
+  id: string;
+  email: string;
+  name?: string;
+  role?: UserRole | 'seeker' | 'generic';
+  active: boolean;
+  preferredZones?: string[];
+  maxBudget?: number;
+  roomTypes?: RoomType[];
+  receiveNewListings: boolean;
+  receiveWeeklyNewsletter: boolean;
+  receiveAdminAlerts: boolean;
+  subscribedAt: string;
+  source?: 'portal_footer' | 'popup_modal' | 'profile_optin' | 'manual_admin';
+  lastNotifiedAt?: string;
+}
+
+export type NotificationType = 'new_listing' | 'newsletter' | 'system' | 'scam_alert' | 'urgent';
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  targetAudience: 'all' | 'students' | 'workers' | 'landlords' | 'subscribers';
+  link?: string;
+  listingId?: string;
+  createdAt: string;
+  authorName?: string;
+  readBy?: string[]; // user UIDs who marked this notification as read
+}
+
+export interface Newsletter {
+  id: string;
+  subject: string;
+  previewText?: string;
+  content: string;
+  featuredListingIds?: string[];
+  targetAudience: 'all' | 'students' | 'workers' | 'landlords' | 'subscribers';
+  sentAt: string;
+  sentBy: string;
+  recipientCount: number;
+  status: 'draft' | 'sent';
+}
+

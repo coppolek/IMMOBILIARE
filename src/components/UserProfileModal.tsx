@@ -9,10 +9,13 @@ import {
   LogOut, 
   Check, 
   Phone,
-  ShieldCheck
+  ShieldCheck,
+  Settings,
+  UploadCloud,
+  Sparkles
 } from 'lucide-react';
 import { UserProfile, UserRole, MILAN_UNIVERSITIES } from '../types';
-import { updateUserRole, logoutUser } from '../services/authService';
+import { updateUserRole, logoutUser, isUserAdmin } from '../services/authService';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -20,6 +23,11 @@ interface UserProfileModalProps {
   user: UserProfile;
   lang: 'it' | 'en';
   onProfileUpdated?: (updated: UserProfile) => void;
+  onOpenAdSenseAdmin?: () => void;
+  onOpenImport?: () => void;
+  onOpenGenerator?: () => void;
+  onOpenAdminPanel?: () => void;
+  onOpenSubscribers?: () => void;
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -27,7 +35,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onClose,
   user,
   lang,
-  onProfileUpdated
+  onProfileUpdated,
+  onOpenAdSenseAdmin,
+  onOpenImport,
+  onOpenGenerator,
+  onOpenAdminPanel,
+  onOpenSubscribers,
 }) => {
   const isIt = lang === 'it';
   const [role, setRole] = useState<UserRole>(user.role || 'student');
@@ -71,11 +84,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
       <div 
         id="profile-modal-container"
-        className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden my-8"
+        className="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-stone-200 overflow-hidden my-0 sm:my-8 max-h-[92dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200"
       >
+        {/* Mobile drag handle */}
+        <div className="pt-2 sm:hidden bg-stone-900 flex justify-center">
+          <div className="w-10 h-1 bg-stone-700 rounded-full" />
+        </div>
+
         {/* Header */}
         <div className="bg-stone-900 p-6 text-white relative">
           <button
@@ -206,6 +224,127 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               className="w-full p-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-800 focus:outline-hidden focus:border-amber-500 resize-none"
             />
           </div>
+
+          {/* Admin Tools Section */}
+          {isUserAdmin(user) && (
+            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2.5">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                  <span>{isIt ? 'Strumenti Amministratore' : 'Administrator Tools'}</span>
+                </div>
+                <span className="text-[10px] bg-amber-200/80 text-amber-950 font-bold px-1.5 py-0.5 rounded">
+                  Admin
+                </span>
+              </div>
+
+              {onOpenAdminPanel && (
+                <button
+                  id="btn-profile-open-admin-panel"
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenAdminPanel();
+                  }}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold transition-all shadow-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-stone-950" />
+                    <span>{isIt ? 'Pannello di Amministrazione' : 'Full Administration Panel'}</span>
+                  </div>
+                  <span className="text-[10px] bg-stone-950 text-amber-300 font-bold px-2 py-0.5 rounded-md">
+                    {isIt ? 'Apri Tutto' : 'Open All'}
+                  </span>
+                </button>
+              )}
+
+              {onOpenGenerator && (
+                <button
+                  id="btn-profile-open-generator"
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenGenerator();
+                  }}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white border border-amber-200 hover:border-amber-400 text-stone-800 text-xs font-bold transition-all shadow-xs group"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                    <span>{isIt ? 'Formatta Post FB' : 'FB Post Formatter'}</span>
+                  </div>
+                  <span className="text-[10px] text-amber-700 font-semibold bg-amber-100 group-hover:bg-amber-200 px-2 py-0.5 rounded-md transition-colors">
+                    {isIt ? 'Apri' : 'Open'}
+                  </span>
+                </button>
+              )}
+              
+              {onOpenImport && (
+                <button
+                  id="btn-profile-open-import"
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenImport();
+                  }}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white border border-amber-200 hover:border-amber-400 text-stone-800 text-xs font-bold transition-all shadow-xs group"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+                      <UploadCloud className="w-3.5 h-3.5" />
+                    </div>
+                    <span>{isIt ? 'Importazione Annunci (CSV / RSS)' : 'Import Listings (CSV / RSS)'}</span>
+                  </div>
+                  <span className="text-[10px] text-amber-700 font-semibold bg-amber-100 group-hover:bg-amber-200 px-2 py-0.5 rounded-md transition-colors">
+                    {isIt ? 'Apri' : 'Open'}
+                  </span>
+                </button>
+              )}
+
+              {onOpenSubscribers && (
+                <button
+                  id="btn-profile-open-subscribers"
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenSubscribers();
+                  }}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white border border-emerald-200 hover:border-emerald-400 text-stone-800 text-xs font-bold transition-all shadow-xs group"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                      <Mail className="w-3.5 h-3.5" />
+                    </div>
+                    <span>{isIt ? 'Gestione Iscritti & Newsletter' : 'Subscribers & Newsletter'}</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 group-hover:bg-emerald-200 px-2 py-0.5 rounded-md transition-colors">
+                    {isIt ? 'Apri' : 'Open'}
+                  </span>
+                </button>
+              )}
+
+              <button
+                id="btn-profile-open-adsense-admin"
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (onOpenAdSenseAdmin) onOpenAdSenseAdmin();
+                }}
+                className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white border border-amber-200 hover:border-amber-400 text-stone-800 text-xs font-bold transition-all shadow-xs group"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+                    <Settings className="w-3.5 h-3.5" />
+                  </div>
+                  <span>{isIt ? 'Banner Google AdSense' : 'Google AdSense Banners'}</span>
+                </div>
+                <span className="text-[10px] text-amber-700 font-semibold bg-amber-100 group-hover:bg-amber-200 px-2 py-0.5 rounded-md transition-colors">
+                  {isIt ? 'Gestisci' : 'Manage'}
+                </span>
+              </button>
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="pt-2 flex items-center justify-between gap-3 border-t border-stone-100">

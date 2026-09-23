@@ -15,23 +15,31 @@ import {
   Check, 
   Building2, 
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Share2
 } from 'lucide-react';
-import { Listing } from '../types';
+import { Listing, AdSenseConfig } from '../types';
 import { FACEBOOK_GROUP_URL } from '../data/milanData';
+import { AdBanner } from './AdBanner';
 
 interface ListingDetailModalProps {
   listing: Listing | null;
   onClose: () => void;
-  onVerifyAI: (listing: Listing) => void;
   lang: 'it' | 'en';
+  adConfig?: AdSenseConfig | null;
+  onOpenAdSenseAdmin?: () => void;
+  isAdmin?: boolean;
+  onShare?: (listing: Listing) => void;
 }
 
 export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   listing,
   onClose,
-  onVerifyAI,
   lang,
+  adConfig,
+  onOpenAdSenseAdmin,
+  isAdmin = false,
+  onShare,
 }) => {
   if (!listing) return null;
   const isIt = lang === 'it';
@@ -45,21 +53,36 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
       <div 
         id="listing-detail-modal"
-        className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-3xl w-full overflow-hidden my-8 max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
+        className="bg-white rounded-t-3xl sm:rounded-3xl border border-stone-200 shadow-2xl max-w-3xl w-full overflow-hidden my-0 sm:my-8 max-h-[92dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200"
       >
+        {/* Mobile drag handle */}
+        <div className="pt-2 sm:hidden bg-stone-50/90 flex justify-center">
+          <div className="w-10 h-1 bg-stone-300 rounded-full" />
+        </div>
+
         {/* Modal Top Bar */}
-        <div className="p-4 px-6 border-b border-stone-100 flex items-center justify-between bg-stone-50/80">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900">
+        <div className="p-3.5 sm:p-4 px-4 sm:px-6 border-b border-stone-100 flex items-center justify-between bg-stone-50/90 sticky top-0 z-10">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 shrink-0">
               {listing.roomType.toUpperCase()}
             </span>
-            <span className="text-xs text-stone-500">• {listing.zone}</span>
+            <span className="text-xs text-stone-500 truncate">• {listing.zone}</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              id="btn-detail-share"
+              onClick={() => onShare ? onShare(listing) : handleCopyLink()}
+              className="p-2 px-2.5 rounded-xl text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 transition-colors text-xs flex items-center gap-1.5 font-bold"
+              title={isIt ? "Condividi annuncio sui social" : "Share listing on social media"}
+            >
+              <Share2 className="w-4 h-4 text-amber-600" />
+              <span className="hidden sm:inline">{isIt ? 'Condividi' : 'Share'}</span>
+            </button>
+
             <button
               onClick={handleCopyLink}
               className="p-2 rounded-xl text-stone-500 hover:text-stone-900 hover:bg-stone-200/60 transition-colors text-xs flex items-center gap-1 font-medium"
@@ -79,7 +102,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div className="overflow-y-auto p-6 space-y-6">
+        <div className="overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6 flex-1">
           {/* Photo Gallery */}
           <div className="space-y-2">
             <div className="aspect-16/9 rounded-2xl overflow-hidden bg-stone-100 border border-stone-200 relative">
@@ -230,6 +253,18 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             </div>
           </div>
 
+          {/* AdSense Banner inside Listing Details */}
+          {adConfig?.enabled && (
+            <div className="pt-1">
+              <AdBanner 
+                position="listing_modal" 
+                config={adConfig} 
+                onOpenAdmin={onOpenAdSenseAdmin} 
+                isAdmin={isAdmin} 
+              />
+            </div>
+          )}
+
           {/* Author Card & Source */}
           <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -261,31 +296,30 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                   <span>Immobiliare.it</span>
                 </a>
               )}
-
-              <button
-                id="modal-verify-ai-btn"
-                onClick={() => {
-                  onClose();
-                  onVerifyAI(listing);
-                }}
-                className="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-              >
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>{isIt ? 'Verifica con AI' : 'Check with AI'}</span>
-              </button>
             </div>
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 px-6 border-t border-stone-100 bg-stone-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <span className="text-xs text-stone-400">
+        {/* Footer Actions (Sticky Bottom) */}
+        <div className="p-3.5 sm:p-4 px-4 sm:px-6 border-t border-stone-200/80 bg-white/95 backdrop-blur-md sticky bottom-0 z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-[max(env(safe-area-inset-bottom,0px),14px)]">
+          <span className="text-[11px] sm:text-xs text-stone-400 hidden sm:inline">
             {listing.externalListingUrl?.includes('immobiliare.it') || listing.source === 'immobiliare'
               ? 'Provenienza: Portale Immobiliare.it'
               : `Pubblicato ${listing.createdAt} nel Gruppo 477013955229676`}
           </span>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Share button in footer */}
+            <button
+              id="modal-footer-share-btn"
+              onClick={() => onShare ? onShare(listing) : handleCopyLink()}
+              className="inline-flex items-center justify-center gap-1.5 bg-amber-100/90 hover:bg-amber-200/90 text-amber-900 border border-amber-300/80 text-xs sm:text-sm font-bold px-3 sm:px-3.5 py-2.5 rounded-xl shadow-xs transition-colors shrink-0"
+              title={isIt ? 'Condividi questo alloggio sui social' : 'Share this listing on social networks'}
+            >
+              <Share2 className="w-4 h-4 text-amber-800 shrink-0" />
+              <span>{isIt ? 'Condividi' : 'Share'}</span>
+            </button>
+
             {/* If from Immobiliare.it, provide direct link to the listing */}
             {(listing.externalListingUrl?.includes('immobiliare.it') || listing.source === 'immobiliare') && (
               <a
@@ -293,10 +327,10 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 href={listing.externalListingUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-2.5 rounded-xl shadow-xs transition-colors"
               >
-                <span>{isIt ? 'Vedi su Immobiliare.it' : 'View on Immobiliare.it'}</span>
-                <ExternalLink className="w-4 h-4" />
+                <span>{isIt ? 'Vedi su Immobiliare' : 'Immobiliare.it'}</span>
+                <ExternalLink className="w-3.5 h-3.5" />
               </a>
             )}
 
@@ -305,11 +339,11 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
               href={listing.authorFbProfileUrl || FACEBOOK_GROUP_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold px-3.5 sm:px-4 py-2.5 rounded-xl shadow-xs transition-colors"
             >
-              <MessageSquare className="w-4 h-4" />
-              <span>{isIt ? 'Contatta nel Gruppo Facebook' : 'Contact on Facebook Group'}</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <MessageSquare className="w-4 h-4 shrink-0" />
+              <span>{isIt ? 'Contatta su FB' : 'Contact on FB'}</span>
+              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
             </a>
           </div>
         </div>

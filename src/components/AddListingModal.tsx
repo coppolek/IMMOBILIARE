@@ -86,15 +86,20 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
       <div 
         id="add-listing-modal"
-        className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full overflow-hidden my-8 max-h-[90vh] flex flex-col"
+        className="bg-white rounded-t-3xl sm:rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full overflow-hidden my-0 sm:my-8 max-h-[92dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200"
       >
-        <div className="p-4 px-6 border-b border-stone-100 flex items-center justify-between bg-stone-50">
+        {/* Mobile drag handle */}
+        <div className="pt-2 sm:hidden bg-stone-50 flex justify-center">
+          <div className="w-10 h-1 bg-stone-300 rounded-full" />
+        </div>
+
+        <div className="p-3.5 sm:p-4 px-4 sm:px-6 border-b border-stone-100 flex items-center justify-between bg-stone-50 sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-amber-600" />
-            <h3 className="font-bold text-stone-900 text-base font-serif">
+            <h3 className="font-bold text-stone-900 text-sm sm:text-base font-serif">
               {isIt ? 'Pubblica un Alloggio (Offro Casa)' : 'Post an Accommodation (Offering)'}
             </h3>
           </div>
@@ -103,7 +108,7 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="overflow-y-auto p-4 sm:p-6 space-y-4 text-xs flex-1">
           <div>
             <label className="block font-medium text-stone-700 mb-1">
               {isIt ? 'Titolo annuncio' : 'Listing Title'} *
@@ -295,18 +300,18 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
             </div>
           </div>
 
-          <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-stone-200 bg-white sticky bottom-0 z-10 p-3 sm:p-4 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 flex items-center justify-end gap-2 pb-[max(env(safe-area-inset-bottom,0px),14px)]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-stone-600 font-semibold hover:bg-stone-100 rounded-xl"
+              className="px-4 py-2.5 text-stone-600 font-semibold hover:bg-stone-100 rounded-xl text-xs sm:text-sm"
             >
               {isIt ? 'Annulla' : 'Cancel'}
             </button>
             <button
               id="btn-submit-new-listing"
               type="submit"
-              className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl shadow-xs"
+              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold rounded-xl shadow-xs text-xs sm:text-sm"
             >
               {isIt ? 'Pubblica Annuncio' : 'Publish Listing'}
             </button>

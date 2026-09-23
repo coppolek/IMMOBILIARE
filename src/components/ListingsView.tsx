@@ -16,27 +16,39 @@ import {
   ArrowUpDown,
   Building2,
   Calendar,
-  UploadCloud
+  UploadCloud,
+  X,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
+  Share2
 } from 'lucide-react';
-import { Listing, RoomType, MetroLine, University } from '../types';
+import { Listing, RoomType, MetroLine, University, AdSenseConfig } from '../types';
 import { FACEBOOK_GROUP_URL } from '../data/milanData';
+import { AdBanner } from './AdBanner';
 
 interface ListingsViewProps {
   listings: Listing[];
   onSelectListing: (listing: Listing) => void;
-  onVerifyWithAI: (listing: Listing) => void;
   onOpenAddListing: () => void;
   onOpenImport?: () => void;
   lang: 'it' | 'en';
+  adConfig?: AdSenseConfig | null;
+  onOpenAdSenseAdmin?: () => void;
+  isAdmin?: boolean;
+  onShareListing?: (listing: Listing) => void;
 }
 
 export const ListingsView: React.FC<ListingsViewProps> = ({
   listings,
   onSelectListing,
-  onVerifyWithAI,
   onOpenAddListing,
   onOpenImport,
   lang,
+  adConfig,
+  onOpenAdSenseAdmin,
+  isAdmin = false,
+  onShareListing,
 }) => {
   const isIt = lang === 'it';
 
@@ -50,6 +62,31 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
   const [onlyBillsIncluded, setOnlyBillsIncluded] = useState(false);
   const [onlyImmobiliare, setOnlyImmobiliare] = useState(false);
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'recent' | 'metro'>('recent');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (selectedZone !== 'all') count++;
+    if (selectedType !== 'all') count++;
+    if (selectedUni !== 'all') count++;
+    if (selectedMetro !== 'all') count++;
+    if (maxPrice < 1400) count++;
+    if (onlyBillsIncluded) count++;
+    if (onlyImmobiliare) count++;
+    return count;
+  }, [selectedZone, selectedType, selectedUni, selectedMetro, maxPrice, onlyBillsIncluded, onlyImmobiliare]);
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setSelectedZone('all');
+    setSelectedType('all');
+    setMaxPrice(1400);
+    setSelectedMetro('all');
+    setSelectedUni('all');
+    setOnlyBillsIncluded(false);
+    setOnlyImmobiliare(false);
+    setSortBy('recent');
+  };
 
   const availableZones = useMemo(() => {
     const set = new Set<string>();
@@ -141,8 +178,8 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
           </h1>
           <p className="text-sm sm:text-base text-stone-300 leading-relaxed mb-6 max-w-2xl">
             {isIt 
-              ? 'Tutti gli alloggi provengono da studenti, inquilini uscenti e proprietari verificati del gruppo Facebook "Affitti Milano". Con protezione AI contro annunci truffa o richieste di caparra sospette.'
-              : 'Direct listings from students, outgoing tenants, and verified private landlords in the "Affitti Milano" Facebook group. Includes AI Shield against housing scams.'}
+              ? 'Tutti gli alloggi provengono da studenti, inquilini uscenti e proprietari della community "Affitti Milano" e portali verificati.'
+              : 'Direct listings from students, outgoing tenants, and private landlords in the "Affitti Milano" community.'}
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -164,193 +201,370 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
             >
               <span>{isIt ? '+ Pubblica un Alloggio' : '+ Post an Accommodation'}</span>
             </button>
-
-            {onOpenImport && (
-              <button
-                id="hero-import-listings-button"
-                onClick={onOpenImport}
-                className="inline-flex items-center gap-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
-              >
-                <UploadCloud className="w-4 h-4 text-amber-400" />
-                <span>{isIt ? 'Importa CSV / RSS' : 'Import CSV / RSS'}</span>
-              </button>
-            )}
           </div>
         </div>
       </div>
 
       {/* Filter and Search Toolbar */}
-      <div className="bg-white rounded-2xl border border-stone-200/90 p-4 sm:p-5 shadow-xs space-y-4">
-        {/* Top search input & sort */}
-        <div className="flex flex-col sm:flex-row gap-3">
+      <div className="bg-white rounded-2xl border border-stone-200/90 p-3.5 sm:p-5 shadow-xs space-y-3">
+        {/* Top search input & controls row */}
+        <div className="flex flex-col sm:flex-row gap-2.5">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
             <input
               id="search-listing-input"
               type="text"
-              placeholder={isIt ? "Cerca per via, quartiere (es. Piola, Navigli, Bovisa) o fermata metro..." : "Search by street, zone, or metro station..."}
+              placeholder={isIt ? "Cerca per via, quartiere (es. Piola, Navigli) o metro..." : "Search by street, zone, or metro..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-200 bg-stone-50/70 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all placeholder:text-stone-400"
+              className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-200 bg-stone-50/70 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all placeholder:text-stone-400"
             />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-700 rounded-full"
+                title={isIt ? "Cancella ricerca" : "Clear search"}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs">
-              <ArrowUpDown className="w-3.5 h-3.5 text-stone-500" />
-              <span className="text-stone-500 font-medium">{isIt ? 'Ordina:' : 'Sort:'}</span>
+            {/* Mobile Filter Toggle Button */}
+            <button
+              id="btn-toggle-mobile-filters"
+              onClick={() => setShowMobileFilters(!showMobileFilters)}
+              className={`sm:hidden flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                showMobileFilters || activeFiltersCount > 0
+                  ? 'bg-amber-500 text-stone-950 border-amber-600 font-bold'
+                  : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>{isIt ? 'Filtri' : 'Filters'}</span>
+              {activeFiltersCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-stone-950 text-amber-300 text-[10px] font-bold flex items-center justify-center">
+                  {activeFiltersCount}
+                </span>
+              )}
+              {showMobileFilters ? <ChevronUp className="w-3.5 h-3.5 ml-0.5" /> : <ChevronDown className="w-3.5 h-3.5 ml-0.5" />}
+            </button>
+
+            {/* Sort Dropdown */}
+            <div className="flex-1 sm:flex-initial flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 sm:px-3 py-2 text-xs">
+              <ArrowUpDown className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+              <span className="text-stone-500 font-medium hidden sm:inline">{isIt ? 'Ordina:' : 'Sort:'}</span>
               <select
                 id="select-sort-listings"
                 value={sortBy}
                 onChange={(e: any) => setSortBy(e.target.value)}
-                className="bg-transparent font-semibold text-stone-800 focus:outline-hidden cursor-pointer"
+                className="w-full sm:w-auto bg-transparent font-semibold text-stone-800 focus:outline-hidden cursor-pointer text-xs"
               >
                 <option value="recent">{isIt ? 'Più recenti' : 'Most Recent'}</option>
-                <option value="price_asc">{isIt ? 'Prezzo crescente' : 'Price: Low to High'}</option>
-                <option value="price_desc">{isIt ? 'Prezzo decrescente' : 'Price: High to Low'}</option>
+                <option value="price_asc">{isIt ? 'Prezzo: Basso' : 'Price: Low'}</option>
+                <option value="price_desc">{isIt ? 'Prezzo: Alto' : 'Price: High'}</option>
                 <option value="metro">{isIt ? 'Vicinanza Metro' : 'Closest to Metro'}</option>
               </select>
             </div>
+
+            {/* Reset Button */}
+            {activeFiltersCount > 0 && (
+              <button
+                id="btn-reset-filters-desktop"
+                onClick={handleResetFilters}
+                className="hidden sm:inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 font-semibold px-2 py-2"
+                title={isIt ? 'Azzera tutti i filtri' : 'Reset all filters'}
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>{isIt ? 'Azzera' : 'Reset'}</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Filters Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2 border-t border-stone-100 text-xs">
-          {/* Zone Selector */}
-          <div>
-            <label className="block font-medium text-stone-600 mb-1">
-              {isIt ? 'Quartiere / Zona' : 'Milan District'}
-            </label>
-            <select
-              id="filter-zone-select"
-              value={selectedZone}
-              onChange={(e) => setSelectedZone(e.target.value)}
-              className="w-full py-2 px-2.5 rounded-lg border border-stone-200 bg-stone-50 font-medium text-stone-800 focus:outline-hidden focus:border-amber-500"
-            >
-              <option value="all">{isIt ? 'Tutte le zone' : 'All Districts'}</option>
-              {availableZones.map(z => (
-                <option key={z} value={z}>{z}</option>
-              ))}
-            </select>
-          </div>
+        {/* Quick Swipeable Filter Pills Bar (Mobile & Desktop) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1 text-xs">
+          <button
+            onClick={() => { setSelectedType('all'); setSelectedUni('all'); setOnlyBillsIncluded(false); }}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              selectedType === 'all' && selectedUni === 'all' && !onlyBillsIncluded
+                ? 'bg-stone-900 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            {isIt ? 'Tutti gli alloggi' : 'All Listings'}
+          </button>
 
-          {/* Room Type */}
-          <div>
-            <label className="block font-medium text-stone-600 mb-1">
-              {isIt ? 'Tipologia' : 'Room Type'}
-            </label>
-            <select
-              id="filter-type-select"
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="w-full py-2 px-2.5 rounded-lg border border-stone-200 bg-stone-50 font-medium text-stone-800 focus:outline-hidden focus:border-amber-500"
-            >
-              <option value="all">{isIt ? 'Tutte le tipologie' : 'All Types'}</option>
-              <option value="singola">{isIt ? 'Stanza Singola' : 'Single Room'}</option>
-              <option value="doppia">{isIt ? 'Stanza Doppia' : 'Double Room'}</option>
-              <option value="monolocale">{isIt ? 'Monolocale' : 'Studio'}</option>
-              <option value="bilocale">{isIt ? 'Bilocale' : '1-Bedroom Flat'}</option>
-              <option value="posto_letto">{isIt ? 'Posto Letto' : 'Bed in Shared'}</option>
-            </select>
-          </div>
+          <button
+            onClick={() => setSelectedType(selectedType === 'singola' ? 'all' : 'singola')}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              selectedType === 'singola'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            {isIt ? 'Singola' : 'Single Room'}
+          </button>
 
-          {/* University proximity */}
-          <div>
-            <label className="block font-medium text-stone-600 mb-1">
-              {isIt ? 'Vicinanza Università' : 'Near University'}
-            </label>
-            <select
-              id="filter-university-select"
-              value={selectedUni}
-              onChange={(e) => setSelectedUni(e.target.value)}
-              className="w-full py-2 px-2.5 rounded-lg border border-stone-200 bg-stone-50 font-medium text-stone-800 focus:outline-hidden focus:border-amber-500"
-            >
-              <option value="all">{isIt ? 'Tutti gli atenei' : 'All Universities'}</option>
-              <option value="PoliMi Leonardo">PoliMi Leonardo</option>
-              <option value="PoliMi Bovisa">PoliMi Bovisa</option>
-              <option value="Bocconi">Bocconi</option>
-              <option value="Statale">UniMi Statale</option>
-              <option value="Cattolica">Cattolica</option>
-              <option value="Bicocca">Bicocca</option>
-              <option value="NABA">NABA / Marangoni</option>
-            </select>
-          </div>
+          <button
+            onClick={() => setSelectedType(selectedType === 'doppia' ? 'all' : 'doppia')}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              selectedType === 'doppia'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            {isIt ? 'Doppia' : 'Double Room'}
+          </button>
 
-          {/* Metro Line */}
-          <div>
-            <label className="block font-medium text-stone-600 mb-1">
-              {isIt ? 'Linea Metropolitana' : 'Metro Line'}
-            </label>
-            <select
-              id="filter-metro-select"
-              value={selectedMetro}
-              onChange={(e) => setSelectedMetro(e.target.value)}
-              className="w-full py-2 px-2.5 rounded-lg border border-stone-200 bg-stone-50 font-medium text-stone-800 focus:outline-hidden focus:border-amber-500"
-            >
-              <option value="all">{isIt ? 'Qualsiasi linea' : 'Any Line'}</option>
-              <option value="M1">M1 Rossa (Duomo/Cadorna)</option>
-              <option value="M2">M2 Verde (Centrale/Piola/Genova)</option>
-              <option value="M3">M3 Gialla (Centrale/Duomo/Romana)</option>
-              <option value="M4">M4 Blu (Linate/San Babila)</option>
-              <option value="M5">M5 Lilla (Garibaldi/Bicocca/San Siro)</option>
-            </select>
-          </div>
+          <button
+            onClick={() => setSelectedType(selectedType === 'monolocale' ? 'all' : 'monolocale')}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              selectedType === 'monolocale'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            {isIt ? 'Monolocale' : 'Studio'}
+          </button>
 
-          {/* Price Range Slider */}
-          <div className="col-span-2 sm:col-span-1">
-            <div className="flex justify-between items-center mb-1">
-              <label className="font-medium text-stone-600">
-                {isIt ? 'Budget max' : 'Max Budget'}
+          <button
+            onClick={() => setOnlyBillsIncluded(!onlyBillsIncluded)}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              onlyBillsIncluded
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            {isIt ? '✓ Spese Incluse' : '✓ Bills Included'}
+          </button>
+
+          <button
+            onClick={() => setMaxPrice(maxPrice === 650 ? 1400 : 650)}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              maxPrice === 650
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            ≤ €650
+          </button>
+
+          <button
+            onClick={() => setSelectedUni(selectedUni === 'PoliMi Leonardo' ? 'all' : 'PoliMi Leonardo')}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              selectedUni === 'PoliMi Leonardo'
+                ? 'bg-stone-900 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            PoliMi
+          </button>
+
+          <button
+            onClick={() => setSelectedUni(selectedUni === 'Bocconi' ? 'all' : 'Bocconi')}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              selectedUni === 'Bocconi'
+                ? 'bg-stone-900 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            Bocconi
+          </button>
+
+          <button
+            onClick={() => setSelectedUni(selectedUni === 'Statale' ? 'all' : 'Statale')}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              selectedUni === 'Statale'
+                ? 'bg-stone-900 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            Statale
+          </button>
+
+          <button
+            onClick={() => setSelectedUni(selectedUni === 'Bicocca' ? 'all' : 'Bicocca')}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              selectedUni === 'Bicocca'
+                ? 'bg-stone-900 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            Bicocca
+          </button>
+
+          <button
+            onClick={() => setOnlyImmobiliare(!onlyImmobiliare)}
+            className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all text-xs shrink-0 ${
+              onlyImmobiliare
+                ? 'bg-red-600 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            Immobiliare.it
+          </button>
+        </div>
+
+        {/* Detailed Filters Grid (Collapsible on Mobile, Grid on Desktop) */}
+        <div className={`${showMobileFilters ? 'block' : 'hidden'} sm:block pt-3 border-t border-stone-100`}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+            {/* Zone Selector */}
+            <div>
+              <label className="block font-medium text-stone-600 mb-1">
+                {isIt ? 'Quartiere / Zona' : 'Milan District'}
               </label>
-              <span className="font-bold text-amber-700">€{maxPrice}/mese</span>
+              <select
+                id="filter-zone-select"
+                value={selectedZone}
+                onChange={(e) => setSelectedZone(e.target.value)}
+                className="w-full py-2 px-2.5 rounded-lg border border-stone-200 bg-stone-50 font-medium text-stone-800 focus:outline-hidden focus:border-amber-500"
+              >
+                <option value="all">{isIt ? 'Tutte le zone' : 'All Districts'}</option>
+                {availableZones.map(z => (
+                  <option key={z} value={z}>{z}</option>
+                ))}
+              </select>
             </div>
-            <input
-              id="filter-price-range"
-              type="range"
-              min="400"
-              max="1500"
-              step="50"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
-              className="w-full accent-amber-600 cursor-pointer"
-            />
+
+            {/* Room Type */}
+            <div>
+              <label className="block font-medium text-stone-600 mb-1">
+                {isIt ? 'Tipologia' : 'Room Type'}
+              </label>
+              <select
+                id="filter-type-select"
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="w-full py-2 px-2.5 rounded-lg border border-stone-200 bg-stone-50 font-medium text-stone-800 focus:outline-hidden focus:border-amber-500"
+              >
+                <option value="all">{isIt ? 'Tutte le tipologie' : 'All Types'}</option>
+                <option value="singola">{isIt ? 'Stanza Singola' : 'Single Room'}</option>
+                <option value="doppia">{isIt ? 'Stanza Doppia' : 'Double Room'}</option>
+                <option value="monolocale">{isIt ? 'Monolocale' : 'Studio'}</option>
+                <option value="bilocale">{isIt ? 'Bilocale' : '1-Bedroom Flat'}</option>
+                <option value="posto_letto">{isIt ? 'Posto Letto' : 'Bed in Shared'}</option>
+              </select>
+            </div>
+
+            {/* University proximity */}
+            <div>
+              <label className="block font-medium text-stone-600 mb-1">
+                {isIt ? 'Vicinanza Università' : 'Near University'}
+              </label>
+              <select
+                id="filter-university-select"
+                value={selectedUni}
+                onChange={(e) => setSelectedUni(e.target.value)}
+                className="w-full py-2 px-2.5 rounded-lg border border-stone-200 bg-stone-50 font-medium text-stone-800 focus:outline-hidden focus:border-amber-500"
+              >
+                <option value="all">{isIt ? 'Tutti gli atenei' : 'All Universities'}</option>
+                <option value="PoliMi Leonardo">PoliMi Leonardo</option>
+                <option value="PoliMi Bovisa">PoliMi Bovisa</option>
+                <option value="Bocconi">Bocconi</option>
+                <option value="Statale">UniMi Statale</option>
+                <option value="Cattolica">Cattolica</option>
+                <option value="Bicocca">Bicocca</option>
+                <option value="NABA">NABA / Marangoni</option>
+              </select>
+            </div>
+
+            {/* Metro Line */}
+            <div>
+              <label className="block font-medium text-stone-600 mb-1">
+                {isIt ? 'Linea Metro' : 'Metro Line'}
+              </label>
+              <select
+                id="filter-metro-select"
+                value={selectedMetro}
+                onChange={(e) => setSelectedMetro(e.target.value)}
+                className="w-full py-2 px-2.5 rounded-lg border border-stone-200 bg-stone-50 font-medium text-stone-800 focus:outline-hidden focus:border-amber-500"
+              >
+                <option value="all">{isIt ? 'Qualsiasi linea' : 'Any Line'}</option>
+                <option value="M1">M1 Rossa</option>
+                <option value="M2">M2 Verde</option>
+                <option value="M3">M3 Gialla</option>
+                <option value="M4">M4 Blu</option>
+                <option value="M5">M5 Lilla</option>
+              </select>
+            </div>
+
+            {/* Price Range Slider */}
+            <div className="col-span-2 sm:col-span-1">
+              <div className="flex justify-between items-center mb-1">
+                <label className="font-medium text-stone-600">
+                  {isIt ? 'Budget max' : 'Max Budget'}
+                </label>
+                <span className="font-bold text-amber-700">€{maxPrice}/m</span>
+              </div>
+              <input
+                id="filter-price-range"
+                type="range"
+                min="400"
+                max="1500"
+                step="50"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(Number(e.target.value))}
+                className="w-full accent-amber-600 cursor-pointer h-2"
+              />
+            </div>
+          </div>
+
+          {/* Quick Checkbox Toggles & Mobile Reset */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 mt-2 border-t border-stone-100 text-xs">
+            <div className="flex items-center gap-4 flex-wrap">
+              <label className="inline-flex items-center gap-2 font-semibold text-stone-700 cursor-pointer select-none">
+                <input
+                  id="toggle-bills-included"
+                  type="checkbox"
+                  checked={onlyBillsIncluded}
+                  onChange={(e) => setOnlyBillsIncluded(e.target.checked)}
+                  className="w-4 h-4 rounded border-stone-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span>{isIt ? 'Spese incluse' : 'Bills included'}</span>
+              </label>
+
+              <label className="inline-flex items-center gap-2 font-semibold text-stone-700 cursor-pointer select-none">
+                <input
+                  id="toggle-immobiliare-only"
+                  type="checkbox"
+                  checked={onlyImmobiliare}
+                  onChange={(e) => setOnlyImmobiliare(e.target.checked)}
+                  className="w-4 h-4 rounded border-stone-300 text-red-600 focus:ring-red-500"
+                />
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-600 inline-block" />
+                  <span>Immobiliare.it</span>
+                </span>
+              </label>
+            </div>
+
+            {activeFiltersCount > 0 && (
+              <button
+                id="btn-reset-filters-mobile"
+                onClick={handleResetFilters}
+                className="inline-flex sm:hidden items-center gap-1 text-xs text-amber-700 hover:text-amber-900 font-bold"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>{isIt ? 'Azzera filtri' : 'Reset filters'}</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Quick Toggles */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <div className="flex items-center gap-4 flex-wrap">
-            <label className="inline-flex items-center gap-2 text-xs font-semibold text-stone-700 cursor-pointer select-none">
-              <input
-                id="toggle-bills-included"
-                type="checkbox"
-                checked={onlyBillsIncluded}
-                onChange={(e) => setOnlyBillsIncluded(e.target.checked)}
-                className="w-4 h-4 rounded border-stone-300 text-amber-600 focus:ring-amber-500"
-              />
-              <span>{isIt ? 'Solo con spese incluse (tutto compreso)' : 'Bills included only (all-in)'}</span>
-            </label>
-
-            <label className="inline-flex items-center gap-2 text-xs font-semibold text-stone-700 cursor-pointer select-none">
-              <input
-                id="toggle-immobiliare-only"
-                type="checkbox"
-                checked={onlyImmobiliare}
-                onChange={(e) => setOnlyImmobiliare(e.target.checked)}
-                className="w-4 h-4 rounded border-stone-300 text-red-600 focus:ring-red-500"
-              />
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-red-600 inline-block" />
-                {isIt ? 'Solo annunci da Immobiliare.it' : 'Only Immobiliare.it listings'}
-              </span>
-            </label>
-          </div>
-
-          <div className="text-xs text-stone-500">
+        {/* Results count indicator */}
+        <div className="flex items-center justify-between text-xs text-stone-500 pt-1">
+          <div>
             {isIt ? 'Trovati ' : 'Found '}
-            <strong className="text-stone-900">{filteredListings.length}</strong>
+            <strong className="text-stone-900 font-bold">{filteredListings.length}</strong>
             {isIt ? ' alloggi disponibili' : ' available listings'}
           </div>
+          {activeFiltersCount > 0 && (
+            <span className="text-[11px] text-amber-700 font-semibold">
+              {activeFiltersCount} {isIt ? 'filtri attivi' : 'active filters'}
+            </span>
+          )}
         </div>
       </div>
 
@@ -385,16 +599,16 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredListings.map((listing) => {
+          {filteredListings.map((listing, index) => {
             const metroBadge = metroColors[listing.metroLine];
             const typeObj = roomTypeLabels[listing.roomType];
 
             return (
-              <div
-                key={listing.id}
-                id={`listing-card-${listing.id}`}
-                className="group bg-white rounded-2xl border border-stone-200/90 hover:border-amber-400/80 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden"
-              >
+              <React.Fragment key={listing.id}>
+                <div
+                  id={`listing-card-${listing.id}`}
+                  className="group bg-white rounded-2xl border border-stone-200/90 hover:border-amber-400/80 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden"
+                >
                 {/* Photo & Top Badges */}
                 <div 
                   className="relative aspect-16/10 overflow-hidden bg-stone-100 cursor-pointer"
@@ -432,6 +646,20 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
                     <span>{listing.metroStation}</span>
                     <span className="text-stone-400 text-[10px]">• {listing.metroWalkingMinutes}m</span>
                   </div>
+
+                  {/* Quick Share on Photo */}
+                  <button
+                    id={`btn-photo-share-${listing.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onShareListing) onShareListing(listing);
+                      else onSelectListing(listing);
+                    }}
+                    title={isIt ? "Condividi sui social" : "Share on social"}
+                    className="absolute top-11 right-3 p-1.5 rounded-lg bg-stone-900/70 hover:bg-stone-900 text-white backdrop-blur-xs transition-all hover:scale-105 z-10"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                  </button>
 
                   {/* Bottom Price in Photo */}
                   <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between text-white">
@@ -534,6 +762,21 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Share button on card footer */}
+                      <button
+                        id={`btn-share-listing-${listing.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onShareListing) onShareListing(listing);
+                          else onSelectListing(listing);
+                        }}
+                        title={isIt ? "Condividi sui social" : "Share on social"}
+                        className="p-1.5 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-xs transition-colors flex items-center gap-1 font-bold"
+                      >
+                        <Share2 className="w-3.5 h-3.5 text-amber-700" />
+                        <span className="hidden sm:inline text-[11px]">{isIt ? 'Condividi' : 'Share'}</span>
+                      </button>
+
                       {(listing.externalListingUrl?.includes('immobiliare.it') || listing.source === 'immobiliare') && (
                         <a
                           id={`btn-immobiliare-${listing.id}`}
@@ -549,16 +792,6 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
                       )}
 
                       <button
-                        id={`btn-verify-ai-${listing.id}`}
-                        onClick={() => onVerifyWithAI(listing)}
-                        title={isIt ? "Verifica sicurezza e prezzo con AI Anti-Truffa" : "Check safety with AI Scam Detector"}
-                        className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs transition-colors flex items-center gap-1 font-semibold"
-                      >
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="hidden xl:inline text-[11px]">{isIt ? 'Verifica AI' : 'Check AI'}</span>
-                      </button>
-
-                      <button
                         id={`btn-open-details-${listing.id}`}
                         onClick={() => onSelectListing(listing)}
                         className="px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold transition-colors"
@@ -569,9 +802,22 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
+
+              {/* In-Feed Google AdSense Banner after the 2nd listing */}
+              {index === 1 && adConfig?.enabled && (
+                <div className="md:col-span-2 lg:col-span-3">
+                  <AdBanner 
+                    position="feed" 
+                    config={adConfig} 
+                    onOpenAdmin={onOpenAdSenseAdmin} 
+                    isAdmin={isAdmin} 
+                  />
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
       )}
     </div>
   );

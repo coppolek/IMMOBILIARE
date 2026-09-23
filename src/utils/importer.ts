@@ -59,7 +59,7 @@ function sanitizeImageUrl(url: string): string | null {
 /**
  * Intelligently extracts Metro Line and Nearest Station from address/zone/title text
  */
-function inferMetroStationAndLine(text: string): { metroStation: string; metroLine: MetroLine; metroWalkingMinutes: number } {
+export function inferMetroStationAndLine(text: string): { metroStation: string; metroLine: MetroLine; metroWalkingMinutes: number } {
   const lower = text.toLowerCase();
 
   // Yellow Line (M3)
@@ -139,7 +139,7 @@ function inferMetroStationAndLine(text: string): { metroStation: string; metroLi
 /**
  * Normalizes zone names extracted from Milano real estate listings
  */
-function normalizeMilanZone(rawZone: string, title: string): string {
+export function normalizeMilanZone(rawZone: string, title: string): string {
   const combined = (rawZone + ' ' + title).toLowerCase();
 
   if (combined.includes('città studi') || combined.includes('piola') || combined.includes('bassini') || combined.includes('ampere')) return 'Città Studi / Piola';

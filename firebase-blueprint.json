@@ -84,6 +84,101 @@
         }
       },
       "required": ["id", "name", "maxBudget"]
+    },
+    "AdSenseConfig": {
+      "title": "AdSenseConfig",
+      "description": "Google AdSense banners configuration managed by administrator",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether AdSense is globally active"
+        },
+        "publisherId": {
+          "type": "string",
+          "description": "Google AdSense Publisher ID (e.g. ca-pub-1234567890123456)"
+        },
+        "testMode": {
+          "type": "boolean",
+          "description": "Show visual placeholder banners when active"
+        }
+      },
+      "required": ["enabled"]
+    },
+    "Subscriber": {
+      "title": "Subscriber",
+      "description": "Newsletter and alert subscriber",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "preferredZones": {
+          "type": "string"
+        },
+        "maxBudget": {
+          "type": "number"
+        },
+        "subscribedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["email", "active"]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "In-app notification broadcast to users",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "targetAudience": {
+          "type": "string"
+        },
+        "link": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": ["title", "message"]
+    },
+    "Newsletter": {
+      "title": "Newsletter",
+      "description": "Newsletter publication record",
+      "type": "object",
+      "properties": {
+        "subject": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        },
+        "sentAt": {
+          "type": "string"
+        },
+        "recipientCount": {
+          "type": "number"
+        }
+      },
+      "required": ["subject", "content"]
     }
   },
   "firestore": {
@@ -98,6 +193,22 @@
     "/seekers/{seekerId}": {
       "schema": "Seeker",
       "description": "Room seekers looking for accommodation"
+    },
+    "/settings/{settingId}": {
+      "schema": "AdSenseConfig",
+      "description": "Site configurations including AdSense banners"
+    },
+    "/subscribers/{subscriberId}": {
+      "schema": "Subscriber",
+      "description": "Newsletter and alerts subscribers"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "AppNotification",
+      "description": "Realtime in-app notifications"
+    },
+    "/newsletters/{newsletterId}": {
+      "schema": "Newsletter",
+      "description": "Published newsletters archive"
     }
   }
 }
