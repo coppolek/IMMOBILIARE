@@ -66,6 +66,14 @@ async function callGeminiWithFallback(
   return null;
 }
 
+// Health check
+// Google AdSense ads.txt endpoint
+app.get('/ads.txt', (_req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.send('google.com, pub-5738943819550045, DIRECT, f08c47fec0942fa0\n');
+});
+
 // Enhanced Health check for Hostinger VPS / Docker / PM2 monitoring
 app.get('/api/health', (_req, res) => {
   const memory = process.memoryUsage();
