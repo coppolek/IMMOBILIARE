@@ -1,0 +1,41 @@
+# ==============================================================================
+# Affitti Milano - Docker Compose for Hostinger VPS
+# Usage:
+#   docker compose up -d --build
+#   docker compose logs -f
+#   docker compose down
+# ==============================================================================
+
+services:
+  affitti-milano:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: affitti-milano:latest
+    container_name: affitti_milano_app
+    restart: unless-stopped
+    ports:
+      # Expose on 127.0.0.1:3000 so Nginx reverse proxy can reach it safely
+      - "127.0.0.1:${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    # Healthcheck to ensure container is responding
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    # Log rotation limits to prevent Hostinger VPS disk space exhaustion
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1024M

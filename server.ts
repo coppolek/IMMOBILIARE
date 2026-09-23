@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import compression from 'compression';
 
 dotenv.config();
 
@@ -10,9 +11,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json({ limit: '5mb' }));
+// Enable reverse proxy support (for Hostinger Nginx / Cloudflare)
+app.set('trust proxy', 1);
+
+// Gzip/deflate compression for all text and JSON responses
+app.use(compression());
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Lazy GoogleGenAI initialization
 let genAIClient: GoogleGenAI | null = null;
@@ -56,13 +64,25 @@ async function callGeminiWithFallback(
   return null;
 }
 
-// Health check
+// Enhanced Health check for Hostinger VPS / Docker / PM2 monitoring
 app.get('/api/health', (_req, res) => {
+  const memory = process.memoryUsage();
   res.json({
     status: 'ok',
-    group: 'https://www.facebook.com/groups/477013955229676',
-    groupId: '477013955229676',
-    community: 'Affitti Milano - Stanze, Monolocali, Appartamenti',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV || 'development',
+    port: PORT,
+    memory: {
+      rssMb: Math.round(memory.rss / (1024 * 1024)),
+      heapUsedMb: Math.round(memory.heapUsed / (1024 * 1024)),
+      heapTotalMb: Math.round(memory.heapTotal / (1024 * 1024)),
+    },
+    community: {
+      name: 'Affitti Milano - Stanze, Monolocali, Appartamenti',
+      groupId: '477013955229676',
+      groupUrl: 'https://www.facebook.com/groups/477013955229676',
+    },
   });
 });
 
@@ -373,15 +393,49 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    const assetsPath = path.join(distPath, 'assets');
+
+    // 1-year cache for immutable hashed Vite assets (JS, CSS, images)
+    app.use('/assets', express.static(assetsPath, {
+      maxAge: '1y',
+      immutable: true,
+    }));
+
+    // Standard static cache for other static files (favicon, manifest, etc.)
+    app.use(express.static(distPath, {
+      maxAge: '1h',
+    }));
+
+    // SPA fallback: index.html should not be aggressively cached so deployments update instantly
     app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Affitti Milano Server running on http://0.0.0.0:${PORT} [${process.env.NODE_ENV || 'development'}]`);
   });
+
+  // Graceful shutdown for PM2 and Docker stop/restart
+  const handleShutdown = (signal: string) => {
+    console.log(`\n🛑 Received ${signal}. Shutting down gracefully...`);
+    server.close(() => {
+      console.log('HTTP server closed.');
+      process.exit(0);
+    });
+
+    // Force shutdown after 10 seconds if still pending
+    setTimeout(() => {
+      console.error('⚠️ Could not close connections in time, forcefully shutting down.');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+  process.on('SIGINT', () => handleShutdown('SIGINT'));
 }
 
 startServer();

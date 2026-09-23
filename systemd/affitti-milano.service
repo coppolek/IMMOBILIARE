@@ -1,0 +1,19 @@
+[Unit]
+Description=Affitti Milano Node.js Web Application
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/affitti-milano
+ExecStart=/usr/bin/node dist/server.cjs
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=affitti-milano
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target
