@@ -7,8 +7,10 @@ import compression from 'compression';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const currentFilename = typeof import.meta !== 'undefined' && import.meta.url
+  ? fileURLToPath(import.meta.url)
+  : path.join(process.cwd(), 'server.js');
+const __dirname = path.dirname(currentFilename);
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;

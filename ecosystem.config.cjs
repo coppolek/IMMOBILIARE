@@ -15,7 +15,7 @@ module.exports = {
   apps: [
     {
       name: 'affitti-milano',
-      script: './dist/server.cjs',
+      script: './dist/server.js',
       cwd: './',
       instances: 1, // Change to 'max' if you want cluster mode on multi-core VPS
       exec_mode: 'fork',
