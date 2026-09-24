@@ -26,11 +26,11 @@ export const ShareListingModal: React.FC<ShareListingModalProps> = ({
   onClose,
   lang,
 }) => {
-  if (!isOpen || !listing) return null;
   const isIt = lang === 'it';
-
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
+
+  if (!isOpen || !listing) return null;
 
   // Generate clean direct deep-link
   const origin = typeof window !== 'undefined' ? window.location.origin : '';

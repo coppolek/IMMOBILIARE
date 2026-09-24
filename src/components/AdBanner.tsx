@@ -27,25 +27,16 @@ export const AdBanner: React.FC<AdBannerProps> = ({
   const codeContainerRef = useRef<HTMLDivElement | null>(null);
   const isPushed = useRef(false);
 
-  // If AdSense/Ads are disabled globally, do not render
-  if (!config || !config.enabled) {
-    return null;
-  }
+  // Find active banner configured for this position safely
+  const banner: AdSenseBanner | undefined = (config && config.enabled)
+    ? config.banners?.find((b) => b.position === position && b.active)
+    : undefined;
 
-  // Find active banner configured for this position
-  const banner: AdSenseBanner | undefined = config.banners?.find(
-    (b) => b.position === position && b.active
-  );
-
-  if (!banner) {
-    return null;
-  }
-
-  const bannerType = banner.type || (banner.customSnippet ? 'code' : 'adsense');
+  const bannerType = banner ? (banner.type || (banner.customSnippet ? 'code' : 'adsense')) : undefined;
 
   // Effect to load AdSense script and push ad request in production mode (for AdSense type)
   useEffect(() => {
-    if (bannerType !== 'adsense' || config.testMode || !config.publisherId) {
+    if (!config || !config.enabled || !banner || bannerType !== 'adsense' || config.testMode || !config.publisherId) {
       return;
     }
 
@@ -95,10 +86,11 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     return () => {
       clearTimeout(timer);
     };
-  }, [bannerType, config.testMode, config.publisherId, banner.slotId]);
+  }, [bannerType, config?.enabled, config?.testMode, config?.publisherId, banner?.slotId]);
 
   // Effect to execute scripts inside custom HTML snippet if present
   useEffect(() => {
+    if (!config || !config.enabled || !banner) return;
     if (bannerType === 'code' && banner.customSnippet && codeContainerRef.current) {
       const container = codeContainerRef.current;
       container.innerHTML = banner.customSnippet;
@@ -112,7 +104,12 @@ export const AdBanner: React.FC<AdBannerProps> = ({
         oldScript.parentNode?.replaceChild(newScript, oldScript);
       });
     }
-  }, [bannerType, banner.customSnippet]);
+  }, [bannerType, banner?.customSnippet, config?.enabled]);
+
+  // If AdSense/Ads are disabled globally or no banner configured, do not render
+  if (!config || !config.enabled || !banner) {
+    return null;
+  }
 
   // Dimension helpers for styling placeholder and container
   const getFormatClasses = () => {

@@ -18,7 +18,6 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
   lang,
   user
 }) => {
-  if (!isOpen) return null;
   const isIt = lang === 'it';
 
   const [title, setTitle] = useState('');
@@ -38,6 +37,8 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
   const [description, setDescription] = useState('');
   const [authorName, setAuthorName] = useState(user?.displayName || '');
   const [landlordType, setLandlordType] = useState<'Privato' | 'Coinquilino'>('Privato');
+
+  if (!isOpen) return null;
 
   const handleCityChange = (newCity: string) => {
     setCity(newCity);

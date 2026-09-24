@@ -41,10 +41,11 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   isAdmin = false,
   onShare,
 }) => {
-  if (!listing) return null;
   const isIt = lang === 'it';
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  if (!listing) return null;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);

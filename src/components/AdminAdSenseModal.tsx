@@ -40,7 +40,6 @@ export const AdminAdSenseModal: React.FC<AdminAdSenseModalProps> = ({
   lang,
   userEmail,
 }) => {
-  if (!isOpen) return null;
   const isIt = lang === 'it';
 
   // Form State
@@ -57,6 +56,8 @@ export const AdminAdSenseModal: React.FC<AdminAdSenseModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [copiedSnippet, setCopiedSnippet] = useState(false);
+
+  if (!isOpen) return null;
 
   // Official Script Code requested by user
   const officialAdSenseScript = `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${publisherId.trim() || 'ca-pub-5738943819550045'}"\n     crossorigin="anonymous"></script>`;

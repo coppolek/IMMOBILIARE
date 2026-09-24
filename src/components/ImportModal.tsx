@@ -36,7 +36,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   user,
   onOpenAuth,
 }) => {
-  if (!isOpen) return null;
   const isIt = lang === 'it';
   const isAdmin = isUserAdmin(user);
 
@@ -54,6 +53,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const [parsedPreview, setParsedPreview] = useState<Listing[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  if (!isOpen) return null;
 
   // Non-admin view lock screen
   if (!isAdmin) {

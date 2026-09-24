@@ -18,7 +18,6 @@ export const AddSeekerModal: React.FC<AddSeekerModalProps> = ({
   lang,
   user
 }) => {
-  if (!isOpen) return null;
   const isIt = lang === 'it';
 
   const [name, setName] = useState(user?.displayName || '');
@@ -34,6 +33,8 @@ export const AddSeekerModal: React.FC<AddSeekerModalProps> = ({
   const [durationMonths, setDurationMonths] = useState(12);
   const [bio, setBio] = useState(user?.bio || '');
   const [hasGuarantor, setHasGuarantor] = useState(true);
+
+  if (!isOpen) return null;
 
   const handleCityChange = (newCity: string) => {
     setCity(newCity);
