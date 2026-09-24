@@ -76,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="sm:hidden font-bold">FB 477k</span>
             </span>
             <span className="hidden md:inline text-stone-300 text-[11px] truncate">
-              {isIt ? 'Community ufficiale alloggi studenti Milano' : 'Official student housing community'}
+              {isIt ? 'puulp.it • Annunci alloggi e stanze in tutti i 107 capoluoghi italiani' : 'puulp.it • Rooms & flats in all 107 Italian provincial capitals'}
             </span>
           </div>
 
@@ -120,20 +120,20 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('listings')}>
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-600 flex items-center justify-center text-white shadow-md shadow-amber-600/20 font-bold text-lg">
-              <Building2 className="w-6 h-6" />
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-500 flex items-center justify-center text-white shadow-md shadow-amber-600/20 font-black text-xl tracking-tighter">
+              p.
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg sm:text-xl tracking-tight text-stone-900 font-serif">
-                  Affitti Milano
+                <span className="font-extrabold text-xl sm:text-2xl tracking-tight text-stone-900 font-sans">
+                  puulp<span className="text-amber-600">.it</span>
                 </span>
                 <span className="hidden md:inline-flex px-2 py-0.5 rounded-md text-[10px] uppercase font-bold tracking-wider bg-amber-100 text-amber-900 border border-amber-200">
-                  Housing Hub
+                  {isIt ? 'Tutti i Capoluoghi' : 'All Capitals'}
                 </span>
               </div>
               <p className="text-xs text-stone-500 hidden sm:block">
-                Stanze, Monolocali & Coinquilini • Milano e Hinterland
+                {isIt ? 'Stanze, Monolocali & Alloggi nei Capoluoghi Italiani' : 'Rooms & Flats across Italian Provincial Capitals'}
               </p>
             </div>
           </div>

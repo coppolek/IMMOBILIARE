@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Listing, RoomType, MetroLine, University, AdSenseConfig } from '../types';
 import { FACEBOOK_GROUP_URL } from '../data/milanData';
+import { ALL_CAPOLUOGHI, POPULAR_CAPOLUOGHI, CITIES_BY_REGION } from '../data/italianCities';
 import { AdBanner } from './AdBanner';
 
 interface ListingsViewProps {
@@ -54,6 +55,7 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCity, setSelectedCity] = useState('all');
   const [selectedZone, setSelectedZone] = useState('all');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [maxPrice, setMaxPrice] = useState<number>(1400);
@@ -66,6 +68,7 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
+    if (selectedCity !== 'all') count++;
     if (selectedZone !== 'all') count++;
     if (selectedType !== 'all') count++;
     if (selectedUni !== 'all') count++;
@@ -74,10 +77,11 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
     if (onlyBillsIncluded) count++;
     if (onlyImmobiliare) count++;
     return count;
-  }, [selectedZone, selectedType, selectedUni, selectedMetro, maxPrice, onlyBillsIncluded, onlyImmobiliare]);
+  }, [selectedCity, selectedZone, selectedType, selectedUni, selectedMetro, maxPrice, onlyBillsIncluded, onlyImmobiliare]);
 
   const handleResetFilters = () => {
     setSearchTerm('');
+    setSelectedCity('all');
     setSelectedZone('all');
     setSelectedType('all');
     setMaxPrice(1400);
@@ -91,14 +95,20 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
   const availableZones = useMemo(() => {
     const set = new Set<string>();
     listings.forEach(l => {
-      if (l.zone) set.add(l.zone);
+      if (selectedCity === 'all' || (l.city || 'Milano').toLowerCase() === selectedCity.toLowerCase()) {
+        if (l.zone) set.add(l.zone);
+      }
     });
     return Array.from(set).sort();
-  }, [listings]);
+  }, [listings, selectedCity]);
 
   const filteredListings = useMemo(() => {
     return listings
       .filter((item) => {
+        const itemCity = item.city || 'Milano';
+        if (selectedCity !== 'all' && itemCity.toLowerCase() !== selectedCity.toLowerCase()) {
+          return false;
+        }
         if (searchTerm) {
           const q = searchTerm.toLowerCase();
           const matchTitle = item.title.toLowerCase().includes(q);
@@ -106,7 +116,8 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
           const matchZone = item.zone.toLowerCase().includes(q);
           const matchAddress = item.address.toLowerCase().includes(q);
           const matchMetro = item.metroStation.toLowerCase().includes(q);
-          if (!matchTitle && !matchDesc && !matchZone && !matchAddress && !matchMetro) {
+          const matchCity = itemCity.toLowerCase().includes(q);
+          if (!matchTitle && !matchDesc && !matchZone && !matchAddress && !matchMetro && !matchCity) {
             return false;
           }
         }
@@ -139,7 +150,7 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
         if (sortBy === 'metro') return a.metroWalkingMinutes - b.metroWalkingMinutes;
         return 0; // default order is recent
       });
-  }, [listings, searchTerm, selectedZone, selectedType, maxPrice, selectedMetro, selectedUni, onlyBillsIncluded, onlyImmobiliare, sortBy]);
+  }, [listings, searchTerm, selectedCity, selectedZone, selectedType, maxPrice, selectedMetro, selectedUni, onlyBillsIncluded, onlyImmobiliare, sortBy]);
 
   const metroColors: Record<MetroLine, { bg: string; text: string; border: string }> = {
     M1: { bg: 'bg-red-500', text: 'text-white', border: 'border-red-600' },
@@ -166,41 +177,101 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
           <div className="flex items-center gap-2 mb-3">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
               <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              {isIt ? 'Annunci Moderati & Verificati' : 'Moderated & Verified Listings'}
+              {isIt ? 'puulp.it • Portale 107 Capoluoghi' : 'puulp.it • 107 Provincial Capitals'}
             </span>
             <span className="text-xs text-stone-400">
-              {isIt ? 'Gruppo FB: 477013955229676' : 'FB Group: 477013955229676'}
+              {isIt ? 'Community FB & Alloggi Moderati' : 'FB Community & Verified Listings'}
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight font-serif text-stone-50 mb-3">
-            {isIt ? 'Stanze e appartamenti in affitto a Milano' : 'Rooms & flats for rent in Milan'}
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight font-sans text-stone-50 mb-3">
+            {isIt ? 'Stanze e alloggi in affitto in tutti i Capoluoghi Italiani' : 'Rooms & flats for rent across all Italian Capitals'}
           </h1>
           <p className="text-sm sm:text-base text-stone-300 leading-relaxed mb-6 max-w-2xl">
             {isIt 
-              ? 'Tutti gli alloggi provengono da studenti, inquilini uscenti e proprietari della community "Affitti Milano" e portali verificati.'
-              : 'Direct listings from students, outgoing tenants, and private landlords in the "Affitti Milano" community.'}
+              ? 'puulp.it ti permette di cercare e inserire annunci di alloggi, singole, doppie e monolocali a Milano, Roma, Bologna, Torino, Firenze, Napoli e in tutti i 107 capoluoghi di provincia italiani con verifica anti-truffa.'
+              : 'puulp.it lets you search and post verified rooms and flats in Milan, Rome, Bologna, Turin, Florence, Naples, and all 107 Italian provincial capitals with scam protection.'}
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              id="hero-post-listing-button"
+              onClick={onOpenAddListing}
+              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+            >
+              <span>{isIt ? '+ Pubblica un Alloggio (Qualsiasi Capoluogo)' : '+ Post an Accommodation (Any Capital)'}</span>
+            </button>
+
             <a
               id="hero-facebook-button"
               href={FACEBOOK_GROUP_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
-            >
-              <span>{isIt ? 'Vedi Gruppo Facebook (85k+ iscritti)' : 'View Facebook Group (85k+ members)'}</span>
-              <ExternalLink className="w-4 h-4" />
-            </a>
-
-            <button
-              id="hero-post-listing-button"
-              onClick={onOpenAddListing}
               className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-stone-100 border border-stone-700 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
             >
-              <span>{isIt ? '+ Pubblica un Alloggio' : '+ Post an Accommodation'}</span>
+              <span>{isIt ? 'Community Facebook' : 'Facebook Community'}</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Capoluogo Quick Filter Bar */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 p-3 sm:p-4 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-stone-900 shrink-0">
+            <MapPin className="w-4 h-4 text-amber-600" />
+            <span>{isIt ? 'Filtra per Capoluogo:' : 'Filter by Capital City:'}</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 flex-1 overflow-x-auto no-scrollbar py-0.5">
+            <button
+              id="city-filter-all"
+              onClick={() => setSelectedCity('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                selectedCity === 'all'
+                  ? 'bg-stone-900 text-white shadow-xs'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              {isIt ? 'Tutte le città' : 'All Cities'}
             </button>
+
+            {['Milano', 'Roma', 'Bologna', 'Torino', 'Firenze', 'Napoli', 'Padova', 'Pisa', 'Bari', 'Palermo'].map((cityName) => (
+              <button
+                key={cityName}
+                id={`city-filter-${cityName.toLowerCase()}`}
+                onClick={() => setSelectedCity(cityName)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                  selectedCity.toLowerCase() === cityName.toLowerCase()
+                    ? 'bg-amber-600 text-white shadow-xs font-bold'
+                    : 'bg-stone-100 text-stone-700 hover:bg-amber-100/60'
+                }`}
+              >
+                {cityName}
+              </button>
+            ))}
+          </div>
+
+          {/* Complete 107 Capoluoghi Dropdown */}
+          <div className="shrink-0 w-full md:w-auto">
+            <select
+              id="select-all-capoluoghi"
+              value={selectedCity}
+              onChange={(e) => setSelectedCity(e.target.value)}
+              className="w-full md:w-56 py-1.5 px-3 rounded-xl border border-stone-300 bg-stone-50 hover:bg-white text-xs font-semibold text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 cursor-pointer"
+            >
+              <option value="all">{isIt ? '🗺️ Tutti i 107 Capoluoghi' : '🗺️ All 107 Capitals'}</option>
+              {Object.entries(CITIES_BY_REGION).map(([regionName, cityList]) => (
+                <optgroup key={regionName} label={`── ${regionName} ──`}>
+                  {cityList.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name} ({c.provinceCode})
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -687,11 +758,14 @@ export const ListingsView: React.FC<ListingsViewProps> = ({
                 {/* Content */}
                 <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
                   <div className="space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs text-stone-500">
-                      <MapPin className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span className="font-semibold text-stone-700">{listing.zone}</span>
+                    <div className="flex items-center gap-1.5 text-xs text-stone-500 flex-wrap">
+                      <span className="font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-md text-[11px] shrink-0 border border-amber-300/60 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-amber-700" />
+                        {listing.city || 'Milano'}
+                      </span>
+                      <span className="font-semibold text-stone-700 truncate">{listing.zone}</span>
                       <span className="text-stone-300">•</span>
-                      <span className="truncate">{listing.address}</span>
+                      <span className="truncate text-stone-500">{listing.address}</span>
                     </div>
 
                     <h3 

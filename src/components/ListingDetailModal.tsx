@@ -65,9 +65,12 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
 
         {/* Modal Top Bar */}
         <div className="p-3.5 sm:p-4 px-4 sm:px-6 border-b border-stone-100 flex items-center justify-between bg-stone-50/90 sticky top-0 z-10">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 shrink-0">
               {listing.roomType.toUpperCase()}
+            </span>
+            <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-amber-600 text-white shrink-0">
+              📍 {listing.city || 'Milano'}
             </span>
             <span className="text-xs text-stone-500 truncate">• {listing.zone}</span>
           </div>

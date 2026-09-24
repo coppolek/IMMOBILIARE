@@ -33,6 +33,8 @@ export interface Listing {
   title: string;
   roomType: RoomType;
   price: number; // in Euros
+  city?: string; // Capoluogo (e.g. 'Milano', 'Roma', 'Bologna')
+  region?: string; // e.g. 'Lombardia', 'Lazio', 'Emilia-Romagna'
   billsIncluded: boolean;
   billsEstimate?: number;
   depositMonths: number;
@@ -72,6 +74,8 @@ export interface SeekerProfile {
   id: string;
   name: string;
   avatar: string;
+  city?: string; // Capoluogo di ricerca (e.g. 'Milano', 'Roma', 'Bologna')
+  region?: string;
   role: 'Studente' | 'Lavoratore' | 'Dottorando' | 'Stagista';
   universityOrCompany: string;
   budgetMax: number;

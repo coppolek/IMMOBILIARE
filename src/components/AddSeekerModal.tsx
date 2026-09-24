@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Search, GraduationCap } from 'lucide-react';
+import { X, Search, GraduationCap, MapPin } from 'lucide-react';
 import { SeekerProfile, RoomType, UserProfile } from '../types';
+import { ALL_CAPOLUOGHI, CITIES_BY_REGION, getCityDetails } from '../data/italianCities';
 
 interface AddSeekerModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const AddSeekerModal: React.FC<AddSeekerModalProps> = ({
   const isIt = lang === 'it';
 
   const [name, setName] = useState(user?.displayName || '');
+  const [city, setCity] = useState('Milano');
   const [role, setRole] = useState<'Studente' | 'Lavoratore' | 'Stagista'>(
     user?.role === 'worker' ? 'Lavoratore' : 'Studente'
   );
@@ -33,22 +35,33 @@ export const AddSeekerModal: React.FC<AddSeekerModalProps> = ({
   const [bio, setBio] = useState(user?.bio || '');
   const [hasGuarantor, setHasGuarantor] = useState(true);
 
+  const handleCityChange = (newCity: string) => {
+    setCity(newCity);
+    if (newCity !== 'Milano' && targetZones === 'Città Studi, Lambrate, Piola') {
+      setTargetZones(`Centro, Stazione, Ateneo (${newCity})`);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    const cityDetails = getCityDetails(city);
 
     const newSeeker: SeekerProfile = {
       id: `seek-${Date.now()}`,
       name: name.trim() || user?.displayName || 'Cercatore',
       avatar: user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
+      city,
+      region: cityDetails?.region || 'Lombardia',
       role,
-      universityOrCompany: universityOrCompany || (isIt ? 'Studente a Milano' : 'Student in Milan'),
+      universityOrCompany: universityOrCompany || (isIt ? `Studente/Lavoratore a ${city}` : `Student/Worker in ${city}`),
       budgetMax: Number(budgetMax),
       preferredRoomType,
       targetZones: targetZones.split(',').map(s => s.trim()).filter(Boolean),
       moveInDate,
       durationMonths,
-      bio: bio || (isIt ? 'Ragazzo/a ordinato/a, rispettoso/a degli spazi comuni e con garanzie solide.' : 'Clean, quiet person with solid guarantees looking for a room.'),
+      bio: bio || (isIt ? `Ragazzo/a ordinato/a, rispettoso/a degli spazi comuni e con garanzie solide in cerca a ${city}.` : `Clean, quiet person with solid guarantees looking for a room in ${city}.`),
       smoking: false,
       pets: false,
       hasGuarantor,
@@ -97,6 +110,55 @@ export const AddSeekerModal: React.FC<AddSeekerModalProps> = ({
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-stone-50 focus:bg-white"
             />
+          </div>
+
+          {/* City Selection */}
+          <div className="bg-sky-50/70 border border-sky-200/80 rounded-2xl p-3 sm:p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block font-bold text-sky-950 text-xs sm:text-sm flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-sky-700" />
+                {isIt ? 'In quale città capoluogo cerchi?' : 'In which capital city are you searching?'} *
+              </label>
+              <span className="text-[10px] text-sky-800 font-semibold bg-sky-100 px-2 py-0.5 rounded-full">
+                107 Capoluoghi
+              </span>
+            </div>
+
+            {/* Quick Pills */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {['Milano', 'Roma', 'Bologna', 'Torino', 'Firenze', 'Napoli', 'Padova', 'Pisa'].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => handleCityChange(c)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    city === c
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : 'bg-white text-stone-700 hover:bg-sky-100/70 border border-stone-200'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+
+            {/* Dropdown with all 107 cities grouped by Region */}
+            <select
+              id="new-seeker-city-select"
+              value={city}
+              onChange={(e) => handleCityChange(e.target.value)}
+              className="w-full mt-1.5 px-3 py-2 rounded-xl border border-sky-300 bg-white font-semibold text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-sky-500/30 text-xs"
+            >
+              {Object.entries(CITIES_BY_REGION).map(([regionName, cityList]) => (
+                <optgroup key={regionName} label={`── ${regionName} ──`}>
+                  {cityList.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name} ({c.provinceCode}) - {c.region}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

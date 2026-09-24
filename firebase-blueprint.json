@@ -47,7 +47,7 @@
     },
     "Listing": {
       "title": "Listing",
-      "description": "Housing rental listing in Milan",
+      "description": "Housing rental listing across Italian provincial capitals",
       "type": "object",
       "properties": {
         "id": {
@@ -58,6 +58,14 @@
         },
         "price": {
           "type": "number"
+        },
+        "city": {
+          "type": "string",
+          "description": "Italian provincial capital name"
+        },
+        "region": {
+          "type": "string",
+          "description": "Italian region name"
         },
         "zone": {
           "type": "string"
@@ -70,7 +78,7 @@
     },
     "Seeker": {
       "title": "Seeker",
-      "description": "Profile of a student seeking accommodation",
+      "description": "Profile of a student or worker seeking accommodation",
       "type": "object",
       "properties": {
         "id": {
@@ -78,6 +86,10 @@
         },
         "name": {
           "type": "string"
+        },
+        "city": {
+          "type": "string",
+          "description": "Target Italian provincial capital"
         },
         "maxBudget": {
           "type": "number"

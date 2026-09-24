@@ -497,17 +497,17 @@ export default function App() {
             {/* Brand column */}
             <div className="md:col-span-2 space-y-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center text-white font-bold">
-                  <Building2 className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-600 to-amber-500 flex items-center justify-center text-white font-black text-sm">
+                  p.
                 </div>
-                <span className="font-extrabold text-base font-serif text-stone-900">
-                  Affitti Milano • Community FB
+                <span className="font-extrabold text-lg font-sans text-stone-900 tracking-tight">
+                  puulp<span className="text-amber-600">.it</span>
                 </span>
               </div>
               <p className="text-stone-500 leading-relaxed max-w-sm">
                 {isIt 
-                  ? 'Piattaforma e bacheca digitale collegata al gruppo Facebook "Affitti Milano" (ID: 477013955229676). Creata per connettere studenti universitari, giovani lavoratori e proprietari verificati in modo trasparente e sicuro.'
-                  : 'Digital platform connected to the Facebook group "Affitti Milano" (ID: 477013955229676). Created to connect university students, young workers, and verified landlords securely.'}
+                  ? 'Il portale trasparente per stanze, posti letto, appartamenti e alloggi in affitto in tutti i 107 capoluoghi italiani, integrato con la community e verifiche anti-truffa.'
+                  : 'The transparent portal for rooms, shared flats, and apartments across all 107 Italian provincial capitals with scam detection.'}
               </p>
               <div className="flex items-center gap-2 pt-1">
                 <a
@@ -555,7 +555,7 @@ export default function App() {
 
           <div className="pt-6 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-stone-400">
             <div>
-              © 2026 Affitti Milano Community • Gruppo Facebook ID 477013955229676
+              © 2026 puulp.it • Annunci alloggi nei 107 Capoluoghi Italiani
             </div>
             <div className="flex items-center gap-3">
               {isUserAdmin(user) && (
@@ -571,7 +571,7 @@ export default function App() {
                   <span className="hidden sm:inline">•</span>
                 </>
               )}
-              <span>{isIt ? 'Realizzato per studenti e coinquilini a Milano' : 'Built for students and flatmates in Milan'}</span>
+              <span>{isIt ? 'Realizzato per studenti e coinquilini in Italia' : 'Built for students and flatmates in Italy'}</span>
             </div>
           </div>
         </div>

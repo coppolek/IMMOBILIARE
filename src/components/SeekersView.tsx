@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { SeekerProfile, RoomType } from '../types';
 import { FACEBOOK_GROUP_URL } from '../data/milanData';
+import { ALL_CAPOLUOGHI, CITIES_BY_REGION } from '../data/italianCities';
 
 interface SeekersViewProps {
   seekers: SeekerProfile[];
@@ -31,24 +32,30 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
 }) => {
   const isIt = lang === 'it';
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCity, setSelectedCity] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [maxBudgetFilter, setMaxBudgetFilter] = useState<number>(1200);
 
   const filteredSeekers = useMemo(() => {
     return seekers.filter((s) => {
+      const seekerCity = s.city || 'Milano';
+      if (selectedCity !== 'all' && seekerCity.toLowerCase() !== selectedCity.toLowerCase()) {
+        return false;
+      }
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
         const matchName = s.name.toLowerCase().includes(q);
         const matchUni = s.universityOrCompany.toLowerCase().includes(q);
         const matchBio = s.bio.toLowerCase().includes(q);
+        const matchCity = seekerCity.toLowerCase().includes(q);
         const matchZones = s.targetZones.some(z => z.toLowerCase().includes(q));
-        if (!matchName && !matchUni && !matchBio && !matchZones) return false;
+        if (!matchName && !matchUni && !matchBio && !matchZones && !matchCity) return false;
       }
       if (roleFilter !== 'all' && s.role !== roleFilter) return false;
       if (s.budgetMax > maxBudgetFilter) return false;
       return true;
     });
-  }, [seekers, searchTerm, roleFilter, maxBudgetFilter]);
+  }, [seekers, searchTerm, selectedCity, roleFilter, maxBudgetFilter]);
 
   const roomTypeNames: Record<RoomType, string> = {
     singola: isIt ? 'Stanza Singola' : 'Single Room',
@@ -66,16 +73,16 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
           <div className="flex items-center gap-2 mb-2">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-400/30 flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-sky-400" />
-              {isIt ? 'Bacheca Inquilini Referenziati' : 'Referenced Tenants Board'}
+              {isIt ? 'puulp.it • Bacheca Inquilini Referenziati' : 'puulp.it • Referenced Tenants Board'}
             </span>
           </div>
-          <h2 className="text-xl sm:text-3xl font-serif font-extrabold text-stone-50 mb-1.5 sm:mb-2">
-            {isIt ? 'Studenti e lavoratori in cerca di alloggio' : 'Students & workers seeking housing in Milan'}
+          <h2 className="text-xl sm:text-3xl font-sans font-extrabold text-stone-50 mb-1.5 sm:mb-2">
+            {isIt ? 'Studenti e lavoratori in cerca di alloggio in Italia' : 'Students & workers seeking housing across Italy'}
           </h2>
           <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
             {isIt 
-              ? 'Hai una stanza libera? Sfoglia i profili con budget, università e referenze garantite. Contattali direttamente!'
-              : 'Have an available room? Browse group members looking for accommodation with verified budgets, universities, and guarantees.'}
+              ? 'Hai una stanza o appartamento libero in qualsiasi città capoluogo? Sfoglia i profili con budget, ateneo e garanzie solide!'
+              : 'Have an available room in any Italian capital? Browse seeker profiles with verified budgets, universities, and guarantees.'}
           </p>
         </div>
 
@@ -89,6 +96,62 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
         </button>
       </div>
 
+      {/* City Capoluogo Filter Bar for Seekers */}
+      <div className="bg-white rounded-2xl border border-stone-200/90 p-3 sm:p-4 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-stone-900 shrink-0">
+            <MapPin className="w-4 h-4 text-sky-600" />
+            <span>{isIt ? 'Città Capoluogo:' : 'Capital City:'}</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 flex-1 overflow-x-auto no-scrollbar py-0.5">
+            <button
+              onClick={() => setSelectedCity('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                selectedCity === 'all'
+                  ? 'bg-stone-900 text-white shadow-xs'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              {isIt ? 'Tutte le città' : 'All Cities'}
+            </button>
+
+            {['Milano', 'Roma', 'Bologna', 'Torino', 'Firenze', 'Napoli', 'Padova', 'Pisa'].map((cityName) => (
+              <button
+                key={cityName}
+                onClick={() => setSelectedCity(cityName)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                  selectedCity.toLowerCase() === cityName.toLowerCase()
+                    ? 'bg-sky-600 text-white shadow-xs font-bold'
+                    : 'bg-stone-100 text-stone-700 hover:bg-sky-100/60'
+                }`}
+              >
+                {cityName}
+              </button>
+            ))}
+          </div>
+
+          <div className="shrink-0 w-full md:w-auto">
+            <select
+              value={selectedCity}
+              onChange={(e) => setSelectedCity(e.target.value)}
+              className="w-full md:w-56 py-1.5 px-3 rounded-xl border border-stone-300 bg-stone-50 hover:bg-white text-xs font-semibold text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-sky-500/30 cursor-pointer"
+            >
+              <option value="all">{isIt ? '🗺️ Tutti i 107 Capoluoghi' : '🗺️ All 107 Capitals'}</option>
+              {Object.entries(CITIES_BY_REGION).map(([regionName, cityList]) => (
+                <optgroup key={regionName} label={`── ${regionName} ──`}>
+                  {cityList.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name} ({c.provinceCode})
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Filter bar */}
       <div className="bg-white rounded-2xl border border-stone-200/90 p-3.5 sm:p-4 shadow-xs space-y-3 text-xs">
         <div className="relative">
@@ -96,7 +159,7 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
           <input
             id="search-seekers-input"
             type="text"
-            placeholder={isIt ? "Cerca per ateneo (PoliMi, Bocconi...), nome o zona..." : "Search by university, name, or zone..."}
+            placeholder={isIt ? "Cerca per ateneo (PoliMi, Sapienza, Bocconi...), nome o zona..." : "Search by university, name, or zone..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-stone-200 bg-stone-50 focus:bg-white focus:outline-hidden focus:border-amber-500 text-xs sm:text-sm"
@@ -190,13 +253,16 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
                     className="w-12 h-12 rounded-full object-cover border-2 border-stone-100 shadow-xs"
                   />
                   <div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <h3 className="font-bold text-stone-900 text-sm sm:text-base">
                         {seeker.name}
                       </h3>
                       {seeker.verified && (
                         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                       )}
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-100 text-sky-900 border border-sky-200">
+                        📍 {seeker.city || 'Milano'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-stone-500">
                       {seeker.role === 'Studente' ? (

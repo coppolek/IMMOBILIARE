@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Plus, Building2, MapPin, Euro, Sparkles } from 'lucide-react';
+import { X, Plus, Building2, MapPin, Euro, Sparkles, Navigation } from 'lucide-react';
 import { Listing, RoomType, MetroLine, University, UserProfile } from '../types';
+import { ALL_CAPOLUOGHI, CITIES_BY_REGION, getCityDetails } from '../data/italianCities';
 
 interface AddListingModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
   const isIt = lang === 'it';
 
   const [title, setTitle] = useState('');
+  const [city, setCity] = useState('Milano');
   const [roomType, setRoomType] = useState<RoomType>('singola');
   const [price, setPrice] = useState('650');
   const [billsIncluded, setBillsIncluded] = useState(false);
@@ -28,7 +30,7 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
   const [depositMonths, setDepositMonths] = useState(2);
   const [zone, setZone] = useState('Città Studi / Piola');
   const [address, setAddress] = useState('Via Pacini, Milano');
-  const [metroStation, setMetroStation] = useState('Piola');
+  const [metroStation, setMetroStation] = useState('Piola / Stazione');
   const [metroLine, setMetroLine] = useState<MetroLine>('M2');
   const [metroWalkingMinutes, setMetroWalkingMinutes] = useState(4);
   const [availableFrom, setAvailableFrom] = useState('2026-10-01');
@@ -37,21 +39,39 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
   const [authorName, setAuthorName] = useState(user?.displayName || '');
   const [landlordType, setLandlordType] = useState<'Privato' | 'Coinquilino'>('Privato');
 
+  const handleCityChange = (newCity: string) => {
+    setCity(newCity);
+    const details = getCityDetails(newCity);
+    if (newCity !== 'Milano') {
+      if (zone === 'Città Studi / Piola') {
+        setZone('Centro / Stazione');
+      }
+      if (address === 'Via Pacini, Milano') {
+        setAddress(`Via Roma, ${newCity}`);
+      }
+      setMetroStation(`Stazione / Mezzi ${newCity}`);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !price) return;
+
+    const cityDetails = getCityDetails(city);
 
     const newListing: Listing = {
       id: `list-${Date.now()}`,
       title,
       roomType,
       price: Number(price),
+      city,
+      region: cityDetails?.region || 'Lombardia',
       billsIncluded,
       billsEstimate: billsIncluded ? 0 : Number(billsEstimate),
       depositMonths,
       zone,
       address,
-      metroStation,
+      metroStation: metroStation || `Centro ${city}`,
       metroLine,
       metroWalkingMinutes,
       availableFrom,
@@ -60,13 +80,13 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
         'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80',
         'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=800&q=80',
       ],
-      description: description || 'Alloggio accogliente e luminoso per studenti o giovani lavoratori a Milano con contratto registrato.',
+      description: description || `Alloggio accogliente e luminoso per studenti o lavoratori a ${city} con contratto registrato regolarmente.`,
       contractType: 'Transitorio Studenti',
       landlordType,
-      authorName: authorName.trim() || user?.displayName || 'Utente Gruppo FB',
+      authorName: authorName.trim() || user?.displayName || 'Utente puulp.it',
       authorAvatar: user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
       verified: true,
-      targetUniversities: ['PoliMi Leonardo', 'Statale (Festa del Perdono)'],
+      targetUniversities: city === 'Milano' ? ['PoliMi Leonardo', 'Statale (Festa del Perdono)'] : [],
       amenities: {
         wifi: true,
         desk: true,
@@ -124,6 +144,55 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
             />
           </div>
 
+          {/* City Selection */}
+          <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3 sm:p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block font-bold text-amber-950 text-xs sm:text-sm flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-amber-700" />
+                {isIt ? 'Città Capoluogo' : 'Provincial Capital City'} *
+              </label>
+              <span className="text-[10px] text-amber-800 font-semibold bg-amber-100 px-2 py-0.5 rounded-full">
+                107 Capoluoghi puulp.it
+              </span>
+            </div>
+
+            {/* Quick Pills */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {['Milano', 'Roma', 'Bologna', 'Torino', 'Firenze', 'Napoli', 'Padova', 'Pisa'].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => handleCityChange(c)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    city === c
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-white text-stone-700 hover:bg-amber-100/70 border border-stone-200'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+
+            {/* Dropdown with all 107 cities grouped by Region */}
+            <select
+              id="new-listing-city-select"
+              value={city}
+              onChange={(e) => handleCityChange(e.target.value)}
+              className="w-full mt-1.5 px-3 py-2 rounded-xl border border-amber-300 bg-white font-semibold text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 text-xs"
+            >
+              {Object.entries(CITIES_BY_REGION).map(([regionName, cityList]) => (
+                <optgroup key={regionName} label={`── ${regionName} ──`}>
+                  {cityList.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name} ({c.provinceCode}) - {c.region}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-medium text-stone-700 mb-1">
@@ -174,23 +243,17 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-medium text-stone-700 mb-1">
-                {isIt ? 'Quartiere' : 'District'}
+                {isIt ? 'Quartiere / Zona' : 'District / Zone'} *
               </label>
-              <select
+              <input
                 id="new-listing-zone"
+                type="text"
+                required
                 value={zone}
                 onChange={(e) => setZone(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-stone-50"
-              >
-                <option value="Città Studi / Piola">Città Studi / Piola</option>
-                <option value="Navigli / Porta Genova">Navigli / Porta Genova</option>
-                <option value="Porta Romana / Crocetta">Porta Romana / Crocetta</option>
-                <option value="Isola / Garibaldi">Isola / Garibaldi</option>
-                <option value="Lambrate / NoLo">Lambrate / NoLo</option>
-                <option value="Bovisa / Dergano">Bovisa / Dergano</option>
-                <option value="Bicocca / Greco">Bicocca / Greco</option>
-                <option value="Porta Venezia / Loreto">Porta Venezia / Loreto</option>
-              </select>
+                placeholder={isIt ? `Es. Centro, Stazione, San Lorenzo (${city})` : `E.g. Center, Station (${city})`}
+                className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-stone-50 focus:bg-white"
+              />
             </div>
 
             <div>
@@ -202,7 +265,7 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Via Pacini, Milano"
+                placeholder={`Via Roma, ${city}`}
                 className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-stone-50"
               />
             </div>
@@ -211,32 +274,43 @@ export const AddListingModal: React.FC<AddListingModalProps> = ({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block font-medium text-stone-700 mb-1">
-                {isIt ? 'Linea Metro' : 'Metro Line'}
+                {city === 'Milano' ? (isIt ? 'Linea Metro' : 'Metro Line') : (isIt ? 'Mezzo / Linea' : 'Transport Line')}
               </label>
               <select
                 id="new-listing-metro-line"
                 value={metroLine}
                 onChange={(e: any) => setMetroLine(e.target.value)}
-                className="w-full px-2.5 py-2 rounded-xl border border-stone-200 bg-stone-50"
+                className="w-full px-2.5 py-2 rounded-xl border border-stone-200 bg-stone-50 text-xs"
               >
-                <option value="M1">M1 Rossa</option>
-                <option value="M2">M2 Verde</option>
-                <option value="M3">M3 Gialla</option>
-                <option value="M4">M4 Blu</option>
-                <option value="M5">M5 Lilla</option>
+                {city === 'Milano' ? (
+                  <>
+                    <option value="M1">M1 Rossa</option>
+                    <option value="M2">M2 Verde</option>
+                    <option value="M3">M3 Gialla</option>
+                    <option value="M4">M4 Blu</option>
+                    <option value="M5">M5 Lilla</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="M1">Metro / Tram Principale</option>
+                    <option value="M2">Linea 2 / Bus Rapido</option>
+                    <option value="M3">Stazione FS / Regionale</option>
+                    <option value="M4">Linea Università / Campus</option>
+                  </>
+                )}
               </select>
             </div>
 
             <div>
               <label className="block font-medium text-stone-700 mb-1">
-                {isIt ? 'Fermata Metro' : 'Metro Station'}
+                {isIt ? 'Fermata o Stazione' : 'Station or Stop'}
               </label>
               <input
                 id="new-listing-station"
                 type="text"
                 value={metroStation}
                 onChange={(e) => setMetroStation(e.target.value)}
-                placeholder="Piola"
+                placeholder={isIt ? `Es. Stazione FS o fermata vicina` : `E.g. Main station or stop`}
                 className="w-full px-2.5 py-2 rounded-xl border border-stone-200 bg-stone-50"
               />
             </div>
